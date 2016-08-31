@@ -34,14 +34,19 @@ def resize_image_maintain_aspect_ratio(image, target_height, target_width):
   
   return [output, np.int32(new_height), np.int32(new_width)] 
 
-def augment_image_and_bboxes(image, orig_bboxes, do_random_flip, do_random_shift, max_shift, do_random_crop):
+def augment_image_and_bboxes(image, orig_bboxes, num_bboxes, do_random_flip, do_random_shift, max_shift, do_random_crop):
   """
   Perturb the bounding boxes in the image.
   image : np.array
   orig_bboxes: np.array [[x1, y1, x2, y2]] Normalized coordinates
+  num_bboxes : int, number of bounding boxes in this image. 
   """
   
   image_height, image_width = image.shape[:2]
+  
+  if num_bboxes == 0:
+    return [image, orig_bboxes, np.int32(image_height), np.int32(image_width)]
+  
   
   # Sanity check the bounding boxes
   perturbed_bboxes = []
@@ -225,15 +230,17 @@ def input_nodes(
     
     num_bboxes = tf.cast(features['image/object/bbox/count'], tf.int32)
     
+    # It could be the case that this image has no bounding boxes
+    no_bboxes = tf.equal(num_bboxes, 0)
     
     if add_summaries:
-      tf.image_summary('orig_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes], [tf.float32])[0], [1, -1, 4])))
+      tf.cond(no_bboxes, lambda: tf.image_summary('orig_image', tf.expand_dims(image, 0)), lambda: tf.image_summary('orig_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes], [tf.float32])[0], [1, -1, 4]))))
     
     
     # This is where we will do some image augmentations
     # We need to do the same transformations to the bounding boxes.
     if augment:
-      params = [image, bboxes, cfg.RANDOM_FLIP, cfg.RANDOM_BBOX_SHIFT, cfg.MAX_BBOX_COORD_SHIFT, cfg.RANDOM_CROP]
+      params = [image, bboxes, num_bboxes, cfg.RANDOM_FLIP, cfg.RANDOM_BBOX_SHIFT, cfg.MAX_BBOX_COORD_SHIFT, cfg.RANDOM_CROP]
       output = tf.py_func(augment_image_and_bboxes, params, [tf.float32, tf.float32, tf.int32, tf.int32], name='augment_image')
       image = output[0]
       bboxes = output[1]
@@ -242,13 +249,13 @@ def input_nodes(
       image = tf.reshape(image, tf.pack([output[2], output[3], 3]))
       
       if add_summaries:
-        tf.image_summary('augmented_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes], [tf.float32])[0], [1, -1, 4])))
+        tf.cond(no_bboxes, lambda: tf.image_summary('augmented_image', tf.expand_dims(image, 0)), lambda: tf.image_summary('augmented_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes], [tf.float32])[0], [1, -1, 4]))))
     
       
     # pad the number of boxes so that all images have `max_num_bboxes`
-    # We could have had the generation code do this.
-    num_rows_to_pad = tf.maximum(0, max_num_bboxes - num_bboxes)
-    bboxes = tf.pad(bboxes, tf.pack([tf.pack([0, num_rows_to_pad]), [0, 0]]))
+    num_rows_to_pad = tf.maximum(0, max_num_bboxes - num_bboxes)   
+    #bboxes = tf.pad(bboxes, tf.pack([tf.pack([0, num_rows_to_pad]), [0, 0]]))
+    bboxes = tf.cond(tf.equal(num_bboxes, 0), lambda: tf.zeros([max_num_bboxes, 4]), lambda: tf.pad(bboxes, tf.pack([tf.pack([0, num_rows_to_pad]), [0, 0]])))
     
     if cfg.MAINTAIN_ASPECT_RATIO:
       # Resize the image up, then pad with 0s
