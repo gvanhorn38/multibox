@@ -1,5 +1,6 @@
 import argparse
 import cPickle as pickle
+import logging
 import numpy as np
 import pprint
 import tensorflow as tf
@@ -20,7 +21,8 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
     cfg (EasyDict)
     pretrained_model_path (str) : path to a pretrained Inception Network
   """
-  
+  logger = logging.getLogger()
+  logger.setLevel(logging.DEBUG)
 
   graph = tf.Graph()
 
@@ -110,13 +112,17 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
     train_op = slim.learning.create_train_op(total_loss, optimizer)
 
     # Summary operations
-    # tf.scalar_summary('total_loss', total_loss)
-    # tf.scalar_summary('location_loss', location_loss)
-    # tf.scalar_summary('confidence_loss', confidence_loss)
-    #tf.scalar_summary('learning_rate', lr)
+    tf.scalar_summary('total_loss', total_loss)
+    tf.scalar_summary('location_loss', location_loss)
+    tf.scalar_summary('confidence_loss', confidence_loss)
+    tf.scalar_summary('learning_rate', lr)
     
-    summary_op = tf.merge_all_summaries()
-    
+    #summary_op = tf.merge_summary([])#tf.merge_all_summaries()
+    #print summary_op
+    #t = graph.get_tensor_by_name('MergeSummary/MergeSummary:0')
+    #print t
+    #return
+
     if pretrained_model_path != None:
       init_assign_op, init_feed_dict = slim.assign_from_checkpoint(pretrained_model_path, inception_vars)
     else:
@@ -146,11 +152,11 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
     slim.learning.train(train_op, logdir, 
       init_fn=InitAssignFn,
       number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
-      save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
+      save_summaries_secs=0,#cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
       saver=saver,
       session_config=sess_config,
-      summary_op = summary_op
+      #summary_op = summary_op
     )
 
 def parse_args():
