@@ -190,7 +190,7 @@ def main():
 
   with open(args.priors) as f:
       bbox_priors = pickle.load(f)
-  bbox_priors = np.array(bbox_priors)
+  bbox_priors = np.array(bbox_priors).astype(np.float32)
 
   train(
     tfrecords=args.tfrecords,

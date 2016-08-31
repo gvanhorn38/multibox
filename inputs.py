@@ -114,20 +114,23 @@ def augment_image_and_bboxes(image, orig_bboxes, do_random_flip, do_random_shift
     Get the distance from each edge of the image to the nearest bbox edge. Then randomly crop the image.
     """  
     
-    min_x1 = np.min(perturbed_bboxes[:, 0])
-    min_y1 = np.min(perturbed_bboxes[:, 1])
-    max_x2 = np.max(perturbed_bboxes[:, 2])
-    max_y2 = np.max(perturbed_bboxes[:, 3])
+    # Do we actually have bounding boxes?
+    if perturbed_bboxes.shape[0] > 0:
     
-    left = np.random.randint(0, min_x1 + 1)
-    top = np.random.randint(0, min_y1 + 1)
-    right = np.random.randint(max_x2, image_width + 1)
-    bottom = np.random.randint(max_y2, image_height + 1)
+      min_x1 = np.min(perturbed_bboxes[:, 0])
+      min_y1 = np.min(perturbed_bboxes[:, 1])
+      max_x2 = np.max(perturbed_bboxes[:, 2])
+      max_y2 = np.max(perturbed_bboxes[:, 3])
+      
+      left = np.random.randint(0, min_x1 + 1)
+      top = np.random.randint(0, min_y1 + 1)
+      right = np.random.randint(max_x2, image_width + 1)
+      bottom = np.random.randint(max_y2, image_height + 1)
+      
+      perturbed_image = perturbed_image[top:bottom, left:right, :]
+      perturbed_bboxes = perturbed_bboxes - np.array([left, top, left, top])
     
-    perturbed_image = perturbed_image[top:bottom, left:right, :]
-    perturbed_bboxes = perturbed_bboxes - np.array([left, top, left, top])
     
-  
   image_height, image_width = perturbed_image.shape[:2]
   
   image_height = float(image_height)
