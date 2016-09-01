@@ -234,7 +234,10 @@ def input_nodes(
     no_bboxes = tf.equal(num_bboxes, 0)
     
     if add_summaries:
-      tf.cond(no_bboxes, lambda: tf.image_summary('orig_image', tf.expand_dims(image, 0)), lambda: tf.image_summary('orig_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes], [tf.float32])[0], [1, -1, 4]))))
+      #tf.cond(no_bboxes, lambda: tf.image_summary('orig_image', tf.expand_dims(image, 0)), lambda: tf.image_summary('orig_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes], [tf.float32])[0], [1, -1, 4]))))
+      
+      bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: bboxes)
+      tf.image_summary('orig_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes_to_draw], [tf.float32])[0], [1, -1, 4])))
     
     
     # This is where we will do some image augmentations
@@ -249,7 +252,9 @@ def input_nodes(
       image = tf.reshape(image, tf.pack([output[2], output[3], 3]))
       
       if add_summaries:
-        tf.cond(no_bboxes, lambda: tf.image_summary('augmented_image', tf.expand_dims(image, 0)), lambda: tf.image_summary('augmented_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes], [tf.float32])[0], [1, -1, 4]))))
+        #tf.cond(no_bboxes, lambda: tf.image_summary('augmented_image', tf.expand_dims(image, 0)), lambda: tf.image_summary('augmented_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes], [tf.float32])[0], [1, -1, 4]))))
+        bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: bboxes)
+        tf.image_summary('augmented_image', tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), tf.reshape(tf.py_func(reshape_bboxes, [bboxes_to_draw], [tf.float32])[0], [1, -1, 4])))
     
       
     # pad the number of boxes so that all images have `max_num_bboxes`

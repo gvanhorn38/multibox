@@ -1,4 +1,5 @@
 import argparse
+import copy
 import cPickle as pickle
 import logging
 import numpy as np
@@ -27,7 +28,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
   graph = tf.Graph()
 
   # Force all Variables to reside on the CPU.
-  with graph.as_default(), tf.device('/cpu:0'):
+  with graph.as_default():
     
     # Create a variable to count the number of train() calls. 
     global_step = slim.get_or_create_global_step()
@@ -62,7 +63,9 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
       min_after_dequeue = cfg.QUEUE_MIN,
       cfg=cfg
     )
-
+    
+    input_summaries = copy.copy(tf.get_collection(tf.GraphKeys.SUMMARIES))
+    
     batch_norm_params = {
       # Decay for the batch_norm moving averages.
       'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
@@ -112,16 +115,12 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
     train_op = slim.learning.create_train_op(total_loss, optimizer)
 
     # Summary operations
-    tf.scalar_summary('total_loss', total_loss)
-    tf.scalar_summary('location_loss', location_loss)
-    tf.scalar_summary('confidence_loss', confidence_loss)
-    tf.scalar_summary('learning_rate', lr)
-    
-    #summary_op = tf.merge_summary([])#tf.merge_all_summaries()
-    #print summary_op
-    #t = graph.get_tensor_by_name('MergeSummary/MergeSummary:0')
-    #print t
-    #return
+    summary_op = tf.merge_summary([
+      tf.scalar_summary('total_loss', total_loss),
+      tf.scalar_summary('location_loss', location_loss),
+      tf.scalar_summary('confidence_loss', confidence_loss),
+      tf.scalar_summary('learning_rate', lr)
+    ] + input_summaries)
 
     if pretrained_model_path != None:
       init_assign_op, init_feed_dict = slim.assign_from_checkpoint(pretrained_model_path, inception_vars)
@@ -152,11 +151,12 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
     slim.learning.train(train_op, logdir, 
       init_fn=InitAssignFn,
       number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
-      save_summaries_secs=0,#cfg.SAVE_SUMMARY_SECS,
+      save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
       saver=saver,
       session_config=sess_config,
-      #summary_op = summary_op
+      summary_op = summary_op,
+      log_every_n_steps = cfg.LOG_EVERY_N_STEPS
     )
 
 def parse_args():
