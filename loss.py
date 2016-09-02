@@ -82,19 +82,19 @@ def add_loss(locations, confidences, batched_bboxes, batched_num_bboxes, bbox_pr
     unmatched_locations, matched_locations = tf.dynamic_partition(locations, matching, 2)
     unmatched_confidences, matched_confidences = tf.dynamic_partition(confidences, matching, 2)
     
-    #location_loss = location_loss_alpha * tf.nn.l2_loss(matched_locations - stacked_gt_bboxes)
-    #confidence_loss = -1. * tf.reduce_sum(tf.log(matched_confidences)) - tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
+    location_loss = location_loss_alpha * tf.nn.l2_loss(matched_locations - stacked_gt_bboxes)
+    confidence_loss = -1. * tf.reduce_sum(tf.log(matched_confidences)) - tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
     
     # It could be the case that there are no ground truth bounding boxes
-    num_gt_bboxes = tf.reduce_sum(batched_num_bboxes)
+    # num_gt_bboxes = tf.reduce_sum(batched_num_bboxes)
     
-    loc_loss = lambda: location_loss_alpha * tf.nn.l2_loss(matched_locations - stacked_gt_bboxes)
-    zero_loc_loss = lambda: tf.zeros(shape=[])
-    location_loss = tf.cond(num_gt_bboxes > 0, loc_loss, zero_loc_loss)
+    # loc_loss = lambda: location_loss_alpha * tf.nn.l2_loss(matched_locations - stacked_gt_bboxes)
+    # zero_loc_loss = lambda: tf.zeros(shape=[])
+    # location_loss = tf.cond(num_gt_bboxes > 0, loc_loss, zero_loc_loss)
 
-    conf_loss = lambda: -1. * tf.reduce_sum(tf.log(matched_confidences)) - tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
-    all_negative_conf_loss = lambda : -1. * tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
-    confidence_loss = tf.cond(num_gt_bboxes > 0, conf_loss, all_negative_conf_loss)
+    # conf_loss = lambda: -1. * tf.reduce_sum(tf.log(matched_confidences)) - tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
+    # all_negative_conf_loss = lambda : -1. * tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
+    # confidence_loss = tf.cond(num_gt_bboxes > 0, conf_loss, all_negative_conf_loss)
     
     slim.losses.add_loss(location_loss)
     slim.losses.add_loss(confidence_loss)

@@ -67,3 +67,6 @@ MAX_TO_KEEP : 3
 # you might want to keep one checkpoint file for every N hours of training
 # The default value of 10,000 hours effectively disables the feature.
 KEEP_CHECKPOINT_EVERY_N_HOURS : 10000
+
+# The frequency, in terms of global steps, that the loss and global step and logged.
+LOG_EVERY_N_STEPS : 10 
