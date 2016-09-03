@@ -82,6 +82,15 @@ def add_loss(locations, confidences, batched_bboxes, batched_num_bboxes, bbox_pr
     unmatched_locations, matched_locations = tf.dynamic_partition(locations, matching, 2)
     unmatched_confidences, matched_confidences = tf.dynamic_partition(confidences, matching, 2)
     
+    # Because we just did a dynamic partition, it could be the case that either the unmatched or matched matrices is empty. 
+    # It could also be the case that there were no ground truth bboxes in this batch.
+    # Lets tack on some default values so that the loss calculations are well behaved. 
+    matched_locations = tf.concat(0, [matched_locations, tf.zeros([1, 4])])
+    stacked_gt_bboxes = tf.concat(0, [stacked_gt_bboxes, tf.zeros([1, 4])])
+    matched_confidences = tf.concat(0, [matched_confidences, tf.ones([1])])
+    unmatched_confidences = tf.concat(0, [unmatched_confidences, tf.zeros([1])])
+    
+    
     location_loss = location_loss_alpha * tf.nn.l2_loss(matched_locations - stacked_gt_bboxes)
     confidence_loss = -1. * tf.reduce_sum(tf.log(matched_confidences)) - tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
     
