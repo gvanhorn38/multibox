@@ -206,11 +206,11 @@ def build_detection_heads(inputs, num_bboxes_per_cell, is_training=True, scope='
       branch8x8 = slim.conv2d(branch8x8, 96, [3, 3])
       # 8 x 8 x 96
       endpoints['8x8_locations'] = slim.conv2d(branch8x8, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
       # 8 x 8 x 96
       endpoints['8x8_confidences'] = slim.conv2d(branch8x8, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
 
     # 6 x 6 grid cells
@@ -221,11 +221,11 @@ def build_detection_heads(inputs, num_bboxes_per_cell, is_training=True, scope='
       branch6x6 = slim.conv2d(branch6x6, 96, [3, 3], padding = "VALID")
       # 6 x 6 x 96
       endpoints['6x6_locations'] = slim.conv2d(branch6x6, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
       # 6 x 6 x 96
       endpoints['6x6_confidences'] = slim.conv2d(branch6x6, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
     
     # 8 x 8 x 2048
@@ -237,11 +237,11 @@ def build_detection_heads(inputs, num_bboxes_per_cell, is_training=True, scope='
       branch4x4 = slim.conv2d(net, 128, [3, 3])
       # 4 x 4 x 128
       endpoints['4x4_locations'] = slim.conv2d(branch4x4, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
       # 4 x 4 x 128
       endpoints['4x4_confidences'] = slim.conv2d(branch4x4, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
 
     # 3 x 3 grid cells
@@ -252,11 +252,11 @@ def build_detection_heads(inputs, num_bboxes_per_cell, is_training=True, scope='
       branch3x3 = slim.conv2d(branch3x3, 96, [2, 2], padding="VALID")
       # 3 x 3 x 96
       endpoints['3x3_locations'] = slim.conv2d(branch3x3, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
       # 3 x 3 x 96
       endpoints['3x3_confidences'] = slim.conv2d(branch3x3, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
       
     # 2 x 2 grid cells
@@ -267,11 +267,11 @@ def build_detection_heads(inputs, num_bboxes_per_cell, is_training=True, scope='
       branch2x2 = slim.conv2d(branch2x2, 96, [3, 3], padding = "VALID")
       # 2 x 2 x 96
       endpoints['2x2_locations'] = slim.conv2d(branch2x2, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
       # 2 x 2 x 96
       endpoints['2x2_confidences'] = slim.conv2d(branch2x2, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
       
     # 1 x 1 grid cell
@@ -280,11 +280,11 @@ def build_detection_heads(inputs, num_bboxes_per_cell, is_training=True, scope='
       branch1x1 = slim.avg_pool2d(inputs, [8, 8], padding="VALID")
       # 1 x 1 x 2048
       endpoints['1x1_locations'] = slim.conv2d(branch1x1, 4, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
       # 1 x 1 x 2048
       endpoints['1x1_confidences'] = slim.conv2d(branch1x1, 1, [1, 1],
-        activation_fn=None, normalizer_fn=None
+        activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
     
     batch_size = inputs.get_shape().as_list()[0]
