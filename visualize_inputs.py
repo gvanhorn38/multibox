@@ -8,7 +8,7 @@ import tensorflow as tf
 import sys
 
 from config import parse_config_file
-import inputs
+import inputs_res as inputs
 
 def visualize(tfrecords, cfg):
   
@@ -19,6 +19,7 @@ def visualize(tfrecords, cfg):
   with sess.as_default(), graph.as_default():
 
     # Input Nodes
+    #if cfg.AUGMENT_IMAGE:
     images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
       tfrecords=tfrecords,
       max_num_bboxes = cfg.MAX_NUM_BBOXES,
@@ -26,25 +27,25 @@ def visualize(tfrecords, cfg):
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
       add_summaries = True,
-      augment=cfg.AUGMENT_IMAGE,
+      #augment=cfg.AUGMENT_IMAGE,
       shuffle_batch=False,
       cfg=cfg
     )
     
     
     coord = tf.train.Coordinator()
+    tf.initialize_all_variables().run()
+    tf.initialize_local_variables().run()
+    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
     
     plt.ion()
-
-    tf.initialize_all_variables().run()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
     done = False
     while not done:
       
       output = sess.run([images, batched_bboxes])
       for image, bboxes in zip(output[0], output[1]):
           
-          plt.imshow((image * cfg.IMAGE_STD + cfg.IMAGE_MEAN).astype(np.uint8))
+          plt.imshow(((image / 2. + 0.5) * 255).astype(np.uint8))
           
           # plot the ground truth bounding boxes
           for bbox in bboxes:
@@ -55,14 +56,14 @@ def visualize(tfrecords, cfg):
           
           t = raw_input("push button")
           if t != '':
-            break
             done = True
+            break 
           plt.clf()
 
 
 def parse_args():
 
-    parser = argparse.ArgumentParser(description='Train the multibox detection system')
+    parser = argparse.ArgumentParser(description='Visualize the inputs to the multibox detection system.')
 
     parser.add_argument('--tfrecords', dest='tfrecords',
                         help='paths to tfrecords files that contain the training data', type=str,
