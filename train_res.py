@@ -39,16 +39,21 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
     decay_steps = int(num_batches_per_epoch * cfg.NUM_EPOCHS_PER_DELAY)
 
     # Decay the learning rate exponentially based on the number of steps.
-    lr = tf.train.exponential_decay(cfg.INITIAL_LEARNING_RATE,
-                                    global_step,
-                                    decay_steps,
-                                    cfg.LEARNING_RATE_DECAY_FACTOR,
-                                    staircase=cfg.LEARNING_RATE_STAIRCASE)
+    lr = tf.train.exponential_decay(
+      learning_rate=cfg.INITIAL_LEARNING_RATE,
+      global_step=global_step,
+      decay_steps=decay_steps,
+      decay_rate=cfg.LEARNING_RATE_DECAY_FACTOR,
+      staircase=cfg.LEARNING_RATE_STAIRCASE
+    )
 
     # Create an optimizer that performs gradient descent.
-    optimizer = tf.train.RMSPropOptimizer(lr, cfg.RMSPROP_DECAY,
-                                    momentum=cfg.RMSPROP_MOMENTUM,
-                                    epsilon=cfg.RMSPROP_EPSILON)
+    optimizer = tf.train.RMSPropOptimizer(
+      learning_rate=lr,
+      decay=cfg.RMSPROP_DECAY,
+      momentum=cfg.RMSPROP_MOMENTUM,
+      epsilon=cfg.RMSPROP_EPSILON
+    )
 
     images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
       tfrecords=tfrecords,

@@ -186,13 +186,16 @@ def inception_resnet_v2(inputs,
 
       net = slim.repeat(net, 9, block8, scale=0.20)
       net = block8(net, activation_fn=None)
-
+      
+      # GVH: Not sure if we want or need this convolution
+      # 8 x 8 x 2080
       net = slim.conv2d(net, 1536, 1, scope='Conv2d_7b_1x1')
       end_points['Conv2d_7b_1x1'] = net
-
+    
+    # 8 x 8 x 1536
     return net, end_points
 
-def build_detection_heads(inputs, num_bboxes_per_cell, is_training=True, scope=''):
+def build_detection_heads(inputs, num_bboxes_per_cell, scope=''):
   
   endpoints = {}
   
@@ -328,6 +331,6 @@ def build(inputs, num_bboxes_per_cell, reuse=False, scope=''):
   original_inception_vars = {var.op.name:var for var in model_variables}
 
   # Add on the detection heads
-  locs, confs, _ = build_detection_heads(features, 5)
+  locs, confs, _ = build_detection_heads(features, num_bboxes_per_cell)
   
   return locs, confs, original_inception_vars
