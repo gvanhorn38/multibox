@@ -15,7 +15,8 @@ def compute_assignments(locations, confidences, gt_bboxes, num_gt_bboxes, batch_
   
   num_predictions = locations.shape[0] / batch_size
   assignment_partitions = np.zeros(batch_size * num_predictions, dtype=np.int32)
-  stacked_gt_bboxes = []
+  #stacked_gt_bboxes = []
+  stacked_gt_bboxes = np.zeros([0, 4], dtype=np.float32)
   
   log_confidences = np.log(confidences)
   v = 1. - confidences
@@ -42,9 +43,14 @@ def compute_assignments(locations, confidences, gt_bboxes, num_gt_bboxes, batch_
     
     for r, c in zip(row_ind, col_ind):
       assignment_partitions[offset + r] = 1
-      stacked_gt_bboxes.append(gt_bboxes[b][c])
+      #stacked_gt_bboxes.append(gt_bboxes[b][c])
+      gt_box = gt_bboxes[b][c].reshape([1,4])
+      stacked_gt_bboxes = np.concatenate((stacked_gt_bboxes, gt_box))
+      
+  #stacked_gt_bboxes = np.array(stacked_gt_bboxes).astype(np.float32)
+  stacked_gt_bboxes = stacked_gt_bboxes.astype(np.float32)
     
-  return [assignment_partitions, np.array(stacked_gt_bboxes)]
+  return [assignment_partitions, stacked_gt_bboxes]
 
 def add_loss(locations, confidences, batched_bboxes, batched_num_bboxes, bbox_priors, location_loss_alpha):
   
