@@ -267,6 +267,7 @@ def input_nodes(
     # Add a summary of the original data
     if add_summaries:
       bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: tf.transpose(tf.concat(0, [ymin, xmin, ymax, xmax]), [1, 0]))
+      bboxes_to_draw = tf.reshape(bboxes_to_draw, [1, -1, 4])
       image_with_bboxes = tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), bboxes_to_draw)
       tf.image_summary('original_image', image_with_bboxes)
 
@@ -304,6 +305,7 @@ def input_nodes(
     # Add a summary 
     if add_summaries:
       bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: tf.transpose(tf.concat(0, [ymin, xmin, ymax, xmax]), [1, 0]))
+      bboxes_to_draw = tf.reshape(bboxes_to_draw, [1, -1, 4])
       image_with_bboxes = tf.image.draw_bounding_boxes(tf.expand_dims(resized_image, 0), bboxes_to_draw)
       tf.image_summary('cropped_resized_image', image_with_bboxes)
 
@@ -328,6 +330,7 @@ def input_nodes(
     # Add a summary
     if add_summaries:
       bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: tf.transpose(tf.concat(0, [ymin, xmin, ymax, xmax]), [1, 0]))
+      bboxes_to_draw = tf.reshape(bboxes_to_draw, [1, -1, 4])
       image_with_bboxes = tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), bboxes_to_draw)
       tf.image_summary('final_distorted_image', image_with_bboxes)
 

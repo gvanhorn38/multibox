@@ -8,7 +8,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 from config import parse_config_file
-import inputs
+import inputs_res as inputs
 import loss
 import model_res as model
 
@@ -55,17 +55,28 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
       epsilon=cfg.RMSPROP_EPSILON
     )
 
+    # images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
+    #   tfrecords=tfrecords,
+    #   max_num_bboxes=cfg.MAX_NUM_BBOXES,
+    #   num_epochs=None,
+    #   batch_size=cfg.BATCH_SIZE,
+    #   num_threads=cfg.NUM_INPUT_THREADS,
+    #   add_summaries = True,
+    #   augment=cfg.AUGMENT_IMAGE,
+    #   shuffle_batch=True,
+    #   capacity = cfg.QUEUE_CAPACITY,
+    #   min_after_dequeue = cfg.QUEUE_MIN,
+    #   cfg=cfg
+    # )
+
     images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
       tfrecords=tfrecords,
-      max_num_bboxes=cfg.MAX_NUM_BBOXES,
+      max_num_bboxes = cfg.MAX_NUM_BBOXES,
       num_epochs=None,
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
       add_summaries = True,
-      augment=cfg.AUGMENT_IMAGE,
       shuffle_batch=True,
-      capacity = cfg.QUEUE_CAPACITY,
-      min_after_dequeue = cfg.QUEUE_MIN,
       cfg=cfg
     )
     
