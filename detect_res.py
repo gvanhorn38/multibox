@@ -53,26 +53,23 @@ def input_nodes(
         'image/encoded'  : tf.FixedLenFeature([], tf.string)
       }
     )
-
+    
+    # Read in a jpeg image
     image = tf.image.decode_jpeg(features['image/encoded'], channels=3)
-    image = tf.cast(image, tf.float32)
+    
+    # Convert the pixel values to be in the range [0,1]
+    if image.dtype != tf.float32:
+      image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+
     image_id = features['image/id']
     
-    if cfg.MAINTAIN_ASPECT_RATIO:
-      # Resize the image up, then pad with 0s
-      params = [image, tf.constant(cfg.INPUT_SIZE), tf.constant(cfg.INPUT_SIZE)]
-      output = tf.py_func(resize_image_maintain_aspect_ratio, params, [tf.float32, tf.int32, tf.int32], name="resize_maintain_aspect_ratio")
-      image = output[0]
-      image.set_shape([cfg.INPUT_SIZE, cfg.INPUT_SIZE, 3])
-      
-    else:
-      # All we need to do is resize the image
-      image = tf.image.resize_images(image, cfg.INPUT_SIZE, cfg.INPUT_SIZE)
-      image.set_shape([cfg.INPUT_SIZE, cfg.INPUT_SIZE, 3])
+    image = tf.sub(image, 0.5)
+    image = tf.mul(image, 2.0)
     
-    image -= cfg.IMAGE_MEAN
-    image /= cfg.IMAGE_STD
-    
+    image = tf.expand_dims(image, 0)
+    image = tf.image.resize_bilinear(image, [cfg.INPUT_SIZE, cfg.INPUT_SIZE],
+                                      align_corners=False)
+    image = tf.squeeze(image, [0])
     
     images, image_ids = tf.train.batch(
       [image, image_id],
