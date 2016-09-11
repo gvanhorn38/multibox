@@ -203,32 +203,34 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
               conf = confs[b][index]          
               prior = bbox_priors[index]
               
-              pred_xmin, pred_ymin, pred_xmax, pred_ymax = prior + loc
-
+              pred = np.clip(prior + loc, 0., 1.)
+              #pred_xmin, pred_ymin, pred_xmax, pred_ymax = pred
+              
               # Not sure what we want to do here. Its interesting that we don't enforce this anywhere in the model
-              if pred_xmin > pred_xmax:
-                t = pred_xmax
-                pred_xmax = pred_xmin
-                pred_xmin = t
-              if pred_ymin > pred_ymax:
-                t = pred_ymax
-                pred_ymax = pred_ymin
-                pred_ymin = t
-
+              # if pred_xmin > pred_xmax:
+              #   t = pred_xmax
+              #   pred_xmax = pred_xmin
+              #   pred_xmin = t
+              # if pred_ymin > pred_ymax:
+              #   t = pred_ymax
+              #   pred_ymax = pred_ymin
+              #   pred_ymin = t
+              # pred = np.array([pred_xmin, pred_ymin, pred_xmax, pred_xmin]).astype(np.float32)
+              
               # Restrict the locations to be within the image 
               # This could cause some bounding boxes to have zero area
-              pred_xmin = float(max(0., pred_xmin))
-              pred_xmax = float(min(1., pred_xmax))
-              pred_ymin = float(max(0., pred_ymin))
-              pred_ymax = float(min(1., pred_ymax)) 
+              # pred_xmin = float(max(0., pred_xmin))
+              # pred_xmax = float(min(1., pred_xmax))
+              # pred_ymin = float(max(0., pred_ymin))
+              # pred_ymax = float(min(1., pred_ymax)) 
               
               # Ignore bounding boxes that have zero area 
-              if (pred_xmax - pred_xmin) * (pred_ymax - pred_ymin) < 1e-10:
-                continue
+              # if (pred_xmax - pred_xmin) * (pred_ymax - pred_ymin) < 1e-8:
+              #   continue
 
               detection_results.append({
                 "image_id" : int(img_id), # converts  from np.array
-                "bbox" : [pred_xmin, pred_ymin, pred_xmax, pred_ymax],
+                "bbox" : pred.tolist(), # [pred_xmin, pred_ymin, pred_xmax, pred_ymax],
                 "score" : float(conf), # converts from np.array
               })
 
