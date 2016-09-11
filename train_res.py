@@ -98,7 +98,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
       
       locs, confs, inception_vars = model.build(
         inputs = images,
-        num_bboxes_per_cell = 5,
+        num_bboxes_per_cell = cfg.NUM_BBOXES_PER_CELL,
         reuse=False,
         scope=''
       )

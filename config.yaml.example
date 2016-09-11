@@ -4,6 +4,9 @@ SESSION_CONFIG : {
   PER_PROCESS_GPU_MEMORY_FRACTION : 0.9
 }
 
+# The number of priors in a grid cell. 
+NUM_BBOXES_PER_CELL : 5
+
 # The maximum number of bounding boxes in a single image
 MAX_NUM_BBOXES : 13
 LOCATION_LOSS_ALPHA : 1000.0

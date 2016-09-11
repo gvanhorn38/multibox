@@ -119,7 +119,7 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
       
       locations, confidences, inception_vars = model.build(
         inputs = images,
-        num_bboxes_per_cell = 5,
+        num_bboxes_per_cell = cfg.NUM_BBOXES_PER_CELL,
         reuse=False,
         scope=''
       )
