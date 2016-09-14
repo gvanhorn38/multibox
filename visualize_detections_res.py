@@ -141,16 +141,20 @@ def visualize(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, cfg):
             plt.imshow((image * cfg.IMAGE_STD + cfg.IMAGE_MEAN).astype(np.uint8))
             
             num_gt_bboxes_in_image = gt_num_bboxes[b]
-            
+            print "Number of GT Boxes: %d" % (num_gt_bboxes_in_image,)
+
             # Draw the GT Boxes in blue
             for i in range(num_gt_bboxes_in_image):
               gt_bbox = gt_bboxes[b][i]
               xmin, ymin, xmax, ymax = gt_bbox * cfg.INPUT_SIZE
               plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'b-')
 
-            # Draw the most confident boxes in red
             indices = np.argsort(confs[b].ravel())[::-1]
-            for i, index in enumerate(indices[0:num_gt_bboxes_in_image]):
+            print "Top 10 Detection Confidences: ", confs[b][indices[:10]].ravel().tolist()
+
+            # Draw the most confident boxes in red
+            num_detections_to_render = num_gt_bboxes_in_image if num_gt_bboxes_in_image > 0 else 5
+            for i, index in enumerate(indices[0:num_detections_to_render]):
             
               loc = locs[b][index].ravel()
               conf = confs[b][index]
@@ -164,7 +168,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, cfg):
               xmin, ymin, xmax, ymax = (prior + loc) * cfg.INPUT_SIZE
               plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'r-')
               
-              # Plot the prior in yellow
+              # Plot the prior in green
               xmin, ymin, xmax, ymax = prior * cfg.INPUT_SIZE
               plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'g-')
               
