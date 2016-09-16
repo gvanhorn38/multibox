@@ -58,8 +58,10 @@ def extract_patches(image, patch_dims, strides):
   # print 
 
   if patches.shape[0] == 0:
-    patches = np.zeros([0, patch_height, patch_width, 3])
-    patch_offsets = np.zeros([0, 2])
+    #print "Bad image?"
+    #print image.shape
+    patches = np.zeros([0, patch_height, patch_width, 3], dtype=np.float32)
+    patch_offsets = np.zeros([0, 2], dtype=np.int32)
 
   return [patches, patch_offsets, np.int32(len(patches))]
       
@@ -171,7 +173,11 @@ def input_nodes(
       lambda: tf.image.resize_images(patches_299, cfg.INPUT_SIZE, cfg.INPUT_SIZE, method=0, align_corners=False),
       lambda: tf.zeros([0, cfg.INPUT_SIZE, cfg.INPUT_SIZE, 3])
     )
-    patch_offsets_299 = output[1]
+    #patch_offsets_299 = output[1]
+    patch_offsets_299 = tf.cond(tf.greater(num_patches_299, 0),
+      lambda: tf.identity(output[1]),
+      lambda: tf.zeros([0, 2], dtype=tf.int32)
+    )
     patch_dims_299 = tf.tile([[299, 299]], [num_patches_299, 1])
     patch_restrict_299 = tf.tile([[1]], [num_patches_299, 1])
     patch_max_to_keep_299 = tf.tile([[5]], [num_patches_299, 1])
@@ -182,11 +188,15 @@ def input_nodes(
     patches_185 = output[0]
     num_patches_185 = output[2]
     patches_185.set_shape([None, 185, 185, 3])
-    patches_185 = tf.cond(tf.greater(num_patches_299, 0), 
+    patches_185 = tf.cond(tf.greater(num_patches_185, 0), 
       lambda: tf.image.resize_images(patches_185, cfg.INPUT_SIZE, cfg.INPUT_SIZE, method=0, align_corners=False),
       lambda: tf.zeros([0, cfg.INPUT_SIZE, cfg.INPUT_SIZE, 3])
     )
-    patch_offsets_185 = output[1]
+    #patch_offsets_185 = output[1]
+    patch_offsets_185 = tf.cond(tf.greater(num_patches_185, 0),
+      lambda: tf.identity(output[1]),
+      lambda: tf.zeros([0, 2], dtype=tf.int32)
+    )
     patch_dims_185 = tf.tile([[185, 185]], [num_patches_185, 1])
     patch_restrict_185 = tf.tile([[1]], [num_patches_185, 1])
     patch_max_to_keep_185 = tf.tile([[2]], [num_patches_185, 1])
@@ -375,7 +385,7 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
               continue
             
             # Lets get rid of some of the predictions
-            num_preds_to_keep = patch_max_to_keep[b]
+            num_preds_to_keep = np.asscalar(patch_max_to_keep[b])
             sorted_idxs = np.argsort(filtered_confs.ravel())[::-1]
             sorted_idxs = sorted_idxs[:num_preds_to_keep]
             filtered_bboxes = filtered_bboxes[sorted_idxs]
