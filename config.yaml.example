@@ -47,9 +47,42 @@ RANDOM_CROP_MINIMUM_AREA : 50
 # The fraction of time to distort the color, 0 is never, 1 is always
 DO_COLOR_DISTORTION : 0.5 
 # Avoids slower ops (random_hue and random_contrast)
-COLOR_DISTORT_FAST : False
+COLOR_DISTORT_FAST : false
 
 # END: Image Processing and Augmentation
+###################
+
+###################
+# Detection Configuration
+
+DETECTION : {
+  USE_ORIGINAL_IMAGE : true
+  ORIGINAL_IMAGE_MAX_TO_KEEP : 100
+  
+  USE_FLIPPED_ORIGINAL_IMAGE : true
+  FLIPPED_IMAGE_MAX_TO_KEEP : 100
+  
+  CROPS : [
+    { 
+      HEIGHT : 299
+      WIDTH : 299
+      HEIGHT_STRIDE : 113
+      WIDTH_STRIDE : 113
+      FLIP : false
+      MAX_TO_KEEP : 50
+    }
+    {
+      HEIGHT : 185
+      WIDTH : 185
+      HEIGHT_STRIDE : 69
+      WIDTH_STRIDE : 69
+      FLIP : false
+      MAX_TO_KEEP : 50
+    }
+  ]
+}
+
+# END: Detection Configuration
 ###################
 
 # Input queues to the model

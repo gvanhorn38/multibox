@@ -350,7 +350,7 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
     # Restore the parameters
     saver = tf.train.Saver(shadow_vars, reshape=True)
 
-    fetches = [locations, confidences, batched_offsets, batched_dims, batched_is_flipped, batched_bbox_restrictions, batched_max_to_keep, batched_heights_widths, batched_image_ids]
+    fetches = [locations, confidences, batched_offsets, batched_dims, batched_is_flipped, batched_bbox_restrictions, batched_max_to_keep, batched_heights_widths, batched_image_ids, batched_images]
     
     coord = tf.train.Coordinator()
 
@@ -393,9 +393,14 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
           'Step: %d',
           'Time/image (ms): %.1f'
         ])
+        
+        plt.ion()
+        original_image = None
+        current_image_id = None
 
         step = 0
-        while not coord.should_stop():
+        done = False
+        while not coord.should_stop() and not done:
           
           t = time.time()
           outputs = sess.run(fetches)
@@ -410,8 +415,21 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
           patch_max_to_keep = outputs[6]
           image_height_widths = outputs[7]
           image_ids = outputs[8]
+          
+          images = outputs[9]
 
           for b in range(cfg.BATCH_SIZE):
+            
+            print "Patch Dims: ", patch_dims[b]
+            print "Patch Offset: ", patch_offsets[b]
+            print "Max to keep: ", patch_max_to_keep[b]
+            print "Patch restrictions: ", patch_bbox_restrictions[b]
+            print "Image HxW: ", image_height_widths[b]
+            print
+
+            if current_image_id is None or current_image_id != image_ids[b]:
+              original_image = images[b]
+              current_image_id = image_ids[b]
 
             img_id = int(np.asscalar(image_ids[b]))
             
@@ -419,6 +437,13 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
             predicted_bboxes = np.clip(predicted_bboxes, 0., 1.)
             predicted_confs = confs[b]
 
+            # Keep only the predictions that are completely contained in the [0.1, 0.1, 0.9, 0.9] square
+            # for this patch
+            #if patch_restrict[b]:
+            #  filtered_bboxes, filtered_confs = filter_proposals(predicted_bboxes, predicted_confs) 
+            #else:
+            #  filtered_bboxes = predicted_bboxes
+            #  filtered_confs = predicted_confs
             filtered_bboxes, filtered_confs = filter_proposals(predicted_bboxes, predicted_confs, patch_bbox_restrictions[b])
 
             # No valid predictions? 
@@ -432,6 +457,22 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
             filtered_bboxes = filtered_bboxes[sorted_idxs]
             filtered_confs = filtered_confs[sorted_idxs]
             
+            plt.figure('Cropped Size')
+            plt.imshow(images[b])
+            num_detections_to_render = min(filtered_bboxes.shape[0], 10)
+            for i in range(num_detections_to_render):
+        
+              loc = filtered_bboxes[i].ravel()
+              conf = filtered_confs[i]
+              
+              #print "Location: ", loc
+              #print "Conf: ", conf
+              
+              # Plot the predicted location in red
+              xmin, ymin, xmax, ymax = loc * cfg.INPUT_SIZE
+              plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'r-')
+
+
             # Convert the bounding boxes to the original image dimensions
             converted_bboxes = convert_proposals(
               bboxes = filtered_bboxes, 
@@ -440,6 +481,28 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
               image_dims = image_height_widths[b],
               is_flipped= patch_is_flipped[b]
             )
+            
+            plt.figure('Resized')
+            plt.imshow(original_image)
+            num_detections_to_render = min(converted_bboxes.shape[0], 10)
+            for i in range(num_detections_to_render):
+        
+              loc = converted_bboxes[i].ravel()
+              conf = filtered_confs[i]
+              
+              #print "Location: ", loc
+              #print "Conf: ", conf
+              
+              # Plot the predicted location in red
+              xmin, ymin, xmax, ymax = loc * cfg.INPUT_SIZE
+              plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'r-')
+
+            r = raw_input("press button: ")
+            if r != "":
+              done=True
+              break
+            
+            plt.close('all')
 
             for k in range(converted_bboxes.shape[0]):  
               detection_results.append({
@@ -459,6 +522,13 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
         
       coord.request_stop()
       coord.join(threads)
+      
+      # image_id_count = {}
+      # for r in detection_results:
+      #   image_id_count.setdefault(r['image_id'], []).append(r['image_id'])
+      
+      # for image_id, c in image_id_count.items():
+      #   print "%d : %d" % (image_id, len(c))
 
       # save the results
       save_path = os.path.join(save_dir, "results-dense-%d.json" % global_step)
