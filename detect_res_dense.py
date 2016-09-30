@@ -200,6 +200,7 @@ def input_nodes(
     patch_bbox_restrictions = tf.zeros([0, 4], dtype=tf.float32)
     patch_max_to_keep = tf.zeros([0, 1], dtype=tf.int32)
     
+    # Add the original image
     if cfg.DETECTION.USE_ORIGINAL_IMAGE:
       resized_image = tf.image.resize_bilinear(tf.expand_dims(image, 0), [cfg.INPUT_SIZE, cfg.INPUT_SIZE],
                                         align_corners=False)
@@ -217,6 +218,7 @@ def input_nodes(
       patch_bbox_restrictions = tf.concat(0, [patch_bbox_restrictions, image_bbox_restrictions])
       patch_max_to_keep = tf.concat(0, [patch_max_to_keep, image_max_to_keep])
     
+    # Add a flipped version of the original image
     if cfg.DETECTION.USE_FLIPPED_ORIGINAL_IMAGE:
       flipped_resized_image = tf.image.resize_bilinear(tf.expand_dims(flipped_image, 0), [cfg.INPUT_SIZE, cfg.INPUT_SIZE],
                                         align_corners=False)
@@ -234,6 +236,7 @@ def input_nodes(
       patch_bbox_restrictions = tf.concat(0, [patch_bbox_restrictions, flipped_image_restrictions])
       patch_max_to_keep = tf.concat(0, [patch_max_to_keep, flipped_image_max_to_keep])
 
+    # Extract the crops
     for crop_info in cfg.DETECTION.get('CROPS', []):
       params = []
       if crop_info.FLIP:
@@ -247,7 +250,6 @@ def input_nodes(
       params.append(crop_dims)
       params.append(crop_strides)
 
-      # Extract the patches
       output = tf.py_func(extract_patches, params, [tf.float32, tf.int32, tf.float32, tf.int32])
       num_cropped_patches = output[3]
       cropped_patches = output[0]
@@ -280,7 +282,6 @@ def input_nodes(
     patch_dims.set_shape([None, 2])
     patch_is_flipped.set_shape([None, 1])
     patch_bbox_restrictions.set_shape([None, 4])
-    #patch_restrict.set_shape([None, 1])
     patch_max_to_keep.set_shape([None, 1])
     image_height_widths.set_shape([None, 2])
     image_ids.set_shape([None, 1])
@@ -443,9 +444,9 @@ def detect(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, save_dir
 
             for k in range(converted_bboxes.shape[0]):  
               detection_results.append({
-                "image_id" : img_id, # converts  from np.array
-                "bbox" : converted_bboxes[k].tolist(), # [pred_xmin, pred_ymin, pred_xmax, pred_ymax],
-                "score" : float(np.asscalar(filtered_confs[k])), # converts from np.array
+                "image_id" : img_id,
+                "bbox" : converted_bboxes[k].tolist(),
+                "score" : float(np.asscalar(filtered_confs[k])),
               })
 
           step += 1
