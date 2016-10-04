@@ -20,6 +20,7 @@ with open('priors.pkl', 'w') as f:
 Instead of hand defining the aspect ratios, you can use your training dataset to cluster the aspect ratios of the bounding boxes. There is a utility function to do this in the [priors.py](priors.py) file. 
 
 Next, you'll need to create a configuration file. Checkout the [example](config.yaml.example) to see the different settings. Some especially important settings include:
+
 | Key | Value|
 |-----|------|
 | NUM_BBOXES_PER_CELL | This needs to be set the number of aspect ratios you used to generate the priors. The output layers of the model depend on this number. |
