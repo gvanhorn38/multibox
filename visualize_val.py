@@ -1,3 +1,7 @@
+"""
+Visualize detections on validation images (where we have ground truth detections).
+"""
+
 import argparse
 import cPickle as pickle
 import json
@@ -12,12 +16,11 @@ import tensorflow.contrib.slim as slim
 import time
 
 from config import parse_config_file
-from inputs import input_nodes
-import model_res as model
+import inputs
+import model as model
 
 
-
-def visualize(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, cfg):
+def visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
   
   logger = logging.getLogger()
   logger.setLevel(logging.DEBUG)
@@ -27,17 +30,14 @@ def visualize(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, cfg):
   # Force all Variables to reside on the CPU.
   with graph.as_default():
 
-    images, batched_bboxes, batched_num_bboxes, image_ids = input_nodes(
+    images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
       tfrecords=tfrecords,
-      max_num_bboxes=cfg.MAX_NUM_BBOXES,
-      num_epochs=1,
+      max_num_bboxes = cfg.MAX_NUM_BBOXES,
+      num_epochs=None,
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
-      add_summaries = False,
-      augment=cfg.AUGMENT_IMAGE,
-      shuffle_batch=False,
-      capacity = cfg.QUEUE_CAPACITY,
-      min_after_dequeue = cfg.QUEUE_MIN,
+      add_summaries = True,
+      shuffle_batch=True,
       cfg=cfg
     )
 
@@ -86,6 +86,10 @@ def visualize(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, cfg):
     )
     sess = tf.Session(graph=graph, config=sess_config)
     
+    # Little utility to convert the float images to uint8
+    image_to_convert = tf.placeholder(tf.float32)
+    convert_image_to_uint8 = tf.image.convert_image_dtype(tf.add(tf.div(image_to_convert, 2.0), 0.5), tf.uint8) 
+
     with sess.as_default():
 
       fetches = [locations, confidences, images, batched_bboxes, batched_num_bboxes]
@@ -100,20 +104,19 @@ def visualize(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, cfg):
       
       try:
 
-        if specific_model_path == None:
-          ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
-          if ckpt and ckpt.model_checkpoint_path:
-            specific_model_path = ckpt.model_checkpoint_path
-          else:
-            print('No checkpoint file found')
-            return
+        if tf.gfile.IsDirectory(checkpoint_path):
+          checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
+        
+        if checkpoint_path is None:
+          print "ERROR: No checkpoint file found."
+          return
 
         # Restores from checkpoint
-        saver.restore(sess, specific_model_path)
+        saver.restore(sess, checkpoint_path)
         # Assuming model_checkpoint_path looks something like:
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
-        global_step = int(specific_model_path.split('/')[-1].split('-')[-1])
+        global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
         print "Found model for global step: %d" % (global_step,)
         
         total_sample_count = 0
@@ -138,7 +141,9 @@ def visualize(tfrecords, bbox_priors, checkpoint_dir, specific_model_path, cfg):
             
             # Show the image
             image = imgs[b]
-            plt.imshow((image * cfg.IMAGE_STD + cfg.IMAGE_MEAN).astype(np.uint8))
+
+            uint8_image = sess.run(convert_image_to_uint8, {image_to_convert: image})
+            plt.imshow(uint8_image)
             
             num_gt_bboxes_in_image = gt_num_bboxes[b]
             print "Number of GT Boxes: %d" % (num_gt_bboxes_in_image,)
@@ -202,24 +207,15 @@ def parse_args():
                           help='path to the bounding box priors pickle file', type=str,
                           required=True)
     
-    parser.add_argument('--checkpoint_dir', dest='checkpoint_dir',
-                          help='path to directory where the checkpoint files are stored. The latest model will be tested against.', type=str,
-                          required=False, default=None)
-    
-    parser.add_argument('--model', dest='specific_model',
-                          help='path to a specific model to test against. This has precedence over the checkpoint_dir argument.', type=str,
-                          required=False, default=None)
+    parser.add_argument('--checkpoint_path', dest='checkpoint_path',
+                          help='Either a path to a specific model, or a path to a directory where checkpoint files are stored. If a directory, the latest model will be tested against.', type=str,
+                          required=True, default=None)
 
     parser.add_argument('--config', dest='config_file',
                         help='Path to the configuration file',
                         required=True, type=str)                
 
     args = parser.parse_args()
-    
-    if args.checkpoint_dir == None and args.specific_model == None:
-      print "Either a checkpoint directory or a specific model needs to be specified."
-      parser.print_help()
-      sys.exit(1)
     
     return args
 
@@ -242,8 +238,7 @@ def main():
   visualize(
     tfrecords=args.tfrecords,
     bbox_priors=bbox_priors,
-    checkpoint_dir=args.checkpoint_dir,
-    specific_model_path = args.specific_model,
+    checkpoint_path=args.checkpoint_path,
     cfg=cfg
   ) 
 

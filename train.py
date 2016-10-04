@@ -12,7 +12,6 @@ import inputs
 import loss
 import model
 
-
 def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
   """
   Args:
@@ -39,51 +38,53 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
     decay_steps = int(num_batches_per_epoch * cfg.NUM_EPOCHS_PER_DELAY)
 
     # Decay the learning rate exponentially based on the number of steps.
-    lr = tf.train.exponential_decay(cfg.INITIAL_LEARNING_RATE,
-                                    global_step,
-                                    decay_steps,
-                                    cfg.LEARNING_RATE_DECAY_FACTOR,
-                                    staircase=cfg.LEARNING_RATE_STAIRCASE)
+    lr = tf.train.exponential_decay(
+      learning_rate=cfg.INITIAL_LEARNING_RATE,
+      global_step=global_step,
+      decay_steps=decay_steps,
+      decay_rate=cfg.LEARNING_RATE_DECAY_FACTOR,
+      staircase=cfg.LEARNING_RATE_STAIRCASE
+    )
 
     # Create an optimizer that performs gradient descent.
-    optimizer = tf.train.RMSPropOptimizer(lr, cfg.RMSPROP_DECAY,
-                                    momentum=cfg.RMSPROP_MOMENTUM,
-                                    epsilon=cfg.RMSPROP_EPSILON)
+    optimizer = tf.train.RMSPropOptimizer(
+      learning_rate=lr,
+      decay=cfg.RMSPROP_DECAY,
+      momentum=cfg.RMSPROP_MOMENTUM,
+      epsilon=cfg.RMSPROP_EPSILON
+    )
 
     images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
       tfrecords=tfrecords,
-      max_num_bboxes=cfg.MAX_NUM_BBOXES,
+      max_num_bboxes = cfg.MAX_NUM_BBOXES,
       num_epochs=None,
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
       add_summaries = True,
-      augment=cfg.AUGMENT_IMAGE,
       shuffle_batch=True,
-      capacity = cfg.QUEUE_CAPACITY,
-      min_after_dequeue = cfg.QUEUE_MIN,
       cfg=cfg
     )
     
     input_summaries = copy.copy(tf.get_collection(tf.GraphKeys.SUMMARIES))
     
+    
     batch_norm_params = {
-      # Decay for the batch_norm moving averages.
-      'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
-      # epsilon to prevent 0s in variance.
-      'epsilon': 0.001,
-      'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
-      'is_training' : True
+        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
+        'epsilon': 0.001,
+        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'is_training' : True
     }
-    with slim.arg_scope([slim.conv2d],
-                        activation_fn=tf.nn.relu,
+    # Set activation_fn and parameters for batch_norm.
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
                         normalizer_fn=slim.batch_norm,
                         normalizer_params=batch_norm_params,
-                        weights_regularizer=slim.l2_regularizer(0.00004)):
-      
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
       
       locs, confs, inception_vars = model.build(
         inputs = images,
-        num_bboxes_per_cell = 5,
+        num_bboxes_per_cell = cfg.NUM_BBOXES_PER_CELL,
+        reuse=False,
         scope=''
       )
     

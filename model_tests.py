@@ -1,9 +1,16 @@
+"""
+Basic tests to ensure the model builds correctly.
+
+Run with:
+  $ python model_tests.py
+"""
+
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 import loss
-import model_res as model
+import model
 
 NUM_BBOX_LOCATIONS = 646
 

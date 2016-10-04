@@ -8,7 +8,7 @@ import tensorflow as tf
 import sys
 
 from config import parse_config_file
-import inputs_res as inputs
+import inputs
 
 def visualize(tfrecords, cfg):
   
@@ -19,7 +19,6 @@ def visualize(tfrecords, cfg):
   with sess.as_default(), graph.as_default():
 
     # Input Nodes
-    #if cfg.AUGMENT_IMAGE:
     images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
       tfrecords=tfrecords,
       max_num_bboxes = cfg.MAX_NUM_BBOXES,
@@ -27,8 +26,7 @@ def visualize(tfrecords, cfg):
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
       add_summaries = True,
-      #augment=cfg.AUGMENT_IMAGE,
-      shuffle_batch=False,
+      shuffle_batch=True,
       cfg=cfg
     )
     
