@@ -187,7 +187,7 @@ def input_nodes(
     flipped_image = tf.image.flip_left_right(image)
 
     total_patches = 0
-    patches = tf.zeros([0, 299, 299, 3], dtype=tf.float32)
+    patches = tf.zeros([0, cfg.INPUT_SIZE, cfg.INPUT_SIZE, 3], dtype=tf.float32)
     patch_offsets = tf.zeros([0, 2], dtype = tf.int32)
     patch_dims = tf.zeros([0, 2], dtype=tf.int32)
     patch_is_flipped = tf.zeros([0,1], dtype=tf.int32)
