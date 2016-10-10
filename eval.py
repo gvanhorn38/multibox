@@ -35,7 +35,7 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
     batched_images, batched_bboxes, batched_num_bboxes, batched_image_ids = inputs.input_nodes(
       tfrecords=tfrecords,
       max_num_bboxes = cfg.MAX_NUM_BBOXES,
-      num_epochs=None,
+      num_epochs=1,
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
       capacity=cfg.QUEUE_CAPACITY,
