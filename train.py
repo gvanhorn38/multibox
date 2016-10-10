@@ -12,7 +12,67 @@ import inputs
 import loss
 import model
 
-def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
+def build_fully_trainable_model(inputs, cfg):
+
+  batch_norm_params = {
+    'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
+    'epsilon': 0.001,
+    'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+    'is_training' : True
+  }
+  # Set activation_fn and parameters for batch_norm.
+  with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                      normalizer_fn=slim.batch_norm,
+                      normalizer_params=batch_norm_params,
+                      weights_regularizer=slim.l2_regularizer(0.00004),
+                      biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+    
+    locs, confs, inception_vars = model.build(
+      inputs = inputs,
+      num_bboxes_per_cell = cfg.NUM_BBOXES_PER_CELL,
+      reuse=False,
+      scope=''
+    )
+
+  return locs, confs, inception_vars
+
+def build_finetunable_model(inputs, cfg):
+
+  with slim.arg_scope([slim.conv2d], 
+                      activation_fn=tf.nn.relu,
+                      normalizer_fn=slim.batch_norm,
+                      weights_regularizer=slim.l2_regularizer(0.00004),
+                      biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+      
+      batch_norm_params = {
+        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
+        'epsilon': 0.001,
+        'variables_collections' : [],
+        'is_training' : False
+      }
+      with slim.arg_scope([slim.conv2d], normalizer_params=batch_norm_params):
+        features, _ = model.inception_resnet_v2(inputs, reuse=False, scope='InceptionResnetV2')
+        
+      # Save off the original variables (for ease of restoring)
+      model_variables = slim.get_model_variables()
+      inception_vars = {var.op.name:var for var in model_variables}
+
+      batch_norm_params = {
+        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
+        'epsilon': 0.001,
+        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'is_training' : True
+      }
+      with slim.arg_scope([slim.conv2d], normalizer_params=batch_norm_params):
+
+        # Add on the detection heads
+        locs, confs, _ = model.build_detection_heads(features, cfg.NUM_BBOXES_PER_CELL)
+        model_variables = slim.get_model_variables()
+        detection_vars = {var.op.name:var for var in model_variables if var.op.name not in inception_vars}
+  
+  return locs, confs, inception_vars, detection_vars
+
+def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False):
   """
   Args:
     tfrecords (list)
@@ -54,7 +114,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
       epsilon=cfg.RMSPROP_EPSILON
     )
 
-    images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
+    batched_images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
       tfrecords=tfrecords,
       max_num_bboxes = cfg.MAX_NUM_BBOXES,
       num_epochs=None,
@@ -69,37 +129,23 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
     
     input_summaries = copy.copy(tf.get_collection(tf.GraphKeys.SUMMARIES))
     
-    
-    batch_norm_params = {
-        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
-        'epsilon': 0.001,
-        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
-        'is_training' : True
-    }
-    # Set activation_fn and parameters for batch_norm.
-    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
-                        normalizer_fn=slim.batch_norm,
-                        normalizer_params=batch_norm_params,
-                        weights_regularizer=slim.l2_regularizer(0.00004),
-                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
-      
-      locs, confs, inception_vars = model.build(
-        inputs = images,
-        num_bboxes_per_cell = cfg.NUM_BBOXES_PER_CELL,
-        reuse=False,
-        scope=''
-      )
-    
-      location_loss, confidence_loss = loss.add_loss(
-        locations = locs, 
-        confidences = confs, 
-        batched_bboxes = batched_bboxes, 
-        batched_num_bboxes = batched_num_bboxes, 
-        bbox_priors = bbox_priors, 
-        location_loss_alpha = cfg.LOCATION_LOSS_ALPHA
-      )
-    
+    if fine_tune: 
+      locs, confs, inception_vars, detection_vars = build_finetunable_model(batched_images, cfg)
+      all_trainable_var_names = [v.op.name for v in tf.trainable_variables()]
+      trainable_vars = [v for v_name, v in detection_vars.items() if v_name in all_trainable_var_names]
+    else:
+      locs, confs, inception_vars = build_fully_trainable_model(batched_images, cfg)
+      trainable_vars = slim.model.get_model_variables()
 
+    location_loss, confidence_loss = loss.add_loss(
+      locations = locs, 
+      confidences = confs, 
+      batched_bboxes = batched_bboxes, 
+      batched_num_bboxes = batched_num_bboxes, 
+      bbox_priors = bbox_priors, 
+      location_loss_alpha = cfg.LOCATION_LOSS_ALPHA
+    )
+    
     total_loss = slim.losses.get_total_loss()
 
     # Track the moving averages of all trainable variables.
@@ -111,11 +157,11 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None):
       decay=cfg.MOVING_AVERAGE_DECAY,
       num_updates=global_step
     )
-    variables_to_average = (slim.get_model_variables())
+    variables_to_average = (trainable_vars)
     maintain_averages_op = ema.apply(variables_to_average)
     tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, maintain_averages_op)
 
-    train_op = slim.learning.create_train_op(total_loss, optimizer)
+    train_op = slim.learning.create_train_op(total_loss, optimizer, variables_to_train=trainable_vars)
 
     # Summary operations
     summary_op = tf.merge_summary([
@@ -185,6 +231,10 @@ def parse_args():
     parser.add_argument('--pretrained_model', dest='pretrained_model',
                         help='Is this the first iteration? If so pass a full path to a pretrained Inception-v3 model.',
                         required=False, type=str, default=None)
+    
+    parser.add_argument('--fine_tune', dest='fine_tune',
+                        help='If True, then only the variables in the detection heads will be trained, as opposed to the whole network.',
+                        action='store_true', default=False)
 
     args = parser.parse_args()
     return args
@@ -209,7 +259,8 @@ def main():
     bbox_priors=bbox_priors,
     logdir=args.logdir,
     cfg=cfg,
-    pretrained_model_path=args.pretrained_model
+    pretrained_model_path=args.pretrained_model,
+    fine_tune = args.fine_tune
   )
 
 if __name__ == '__main__':
