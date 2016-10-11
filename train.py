@@ -135,7 +135,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       trainable_vars = [v for v_name, v in detection_vars.items() if v_name in all_trainable_var_names]
     else:
       locs, confs, inception_vars = build_fully_trainable_model(batched_images, cfg)
-      trainable_vars = slim.model.get_model_variables()
+      trainable_vars = slim.get_model_variables()
 
     location_loss, confidence_loss = loss.add_loss(
       locations = locs, 
@@ -157,7 +157,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       decay=cfg.MOVING_AVERAGE_DECAY,
       num_updates=global_step
     )
-    variables_to_average = (trainable_vars)
+    variables_to_average = (slim.get_model_variables()) # Makes it easier to restore for eval and detect purposes (whether you use the fine_tune flag or not)
     maintain_averages_op = ema.apply(variables_to_average)
     tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, maintain_averages_op)
 
