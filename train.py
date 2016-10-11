@@ -12,6 +12,33 @@ import inputs
 import loss
 import model
 
+def get_init_function(logdir, pretrained_model_path):
+  
+  if pretrained_model_path is None:
+    return None
+
+  # Warn the user if a checkpoint exists in the train_dir. Then we'll be
+  # ignoring the checkpoint anyway.
+  if tf.train.latest_checkpoint(logdir):
+    tf.logging.info(
+        'Ignoring --pretrained_model_path because a checkpoint already exists in %s'
+        % logdir)
+    return None
+
+  variables_to_restore = slim.get_model_variables()
+
+  if tf.gfile.IsDirectory(pretrained_model_path):
+    checkpoint_path = tf.train.latest_checkpoint(pretrained_model_path)
+  else:
+    checkpoint_path = pretrained_model_path
+
+  tf.logging.info('Fine-tuning from %s' % checkpoint_path)
+
+  return slim.assign_from_checkpoint_fn(
+      checkpoint_path,
+      variables_to_restore,
+      ignore_missing_vars=False)
+
 def build_fully_trainable_model(inputs, cfg):
 
   batch_norm_params = {
@@ -81,8 +108,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
     cfg (EasyDict)
     pretrained_model_path (str) : path to a pretrained Inception Network
   """
-  logger = logging.getLogger()
-  logger.setLevel(logging.DEBUG)
+  tf.logging.set_verbosity(tf.logging.DEBUG)
 
   graph = tf.Graph()
 
@@ -171,16 +197,6 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       tf.scalar_summary('learning_rate', lr)
     ] + input_summaries)
 
-    if pretrained_model_path != None:
-      init_assign_op, init_feed_dict = slim.assign_from_checkpoint(pretrained_model_path, inception_vars)
-    else:
-      init_assign_op = tf.no_op()
-      init_feed_dict = {}
-
-    # Create an initial assignment function.
-    def InitAssignFn(sess):
-        sess.run(init_assign_op, init_feed_dict)
-
     sess_config = tf.ConfigProto(
       log_device_placement=False,
       #device_filters = device_filters,
@@ -198,7 +214,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
 
     # Run training.
     slim.learning.train(train_op, logdir, 
-      init_fn=InitAssignFn,
+      init_fn=get_init_function(logdir, pretrained_model_path),
       number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
       save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
