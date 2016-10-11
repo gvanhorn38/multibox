@@ -135,7 +135,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       trainable_vars = [v for v_name, v in detection_vars.items() if v_name in all_trainable_var_names]
     else:
       locs, confs, inception_vars = build_fully_trainable_model(batched_images, cfg)
-      trainable_vars = slim.get_model_variables()
+      trainable_vars = tf.trainable_variables()
 
     location_loss, confidence_loss = loss.add_loss(
       locations = locs, 
