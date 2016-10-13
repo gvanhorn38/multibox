@@ -12,7 +12,7 @@ import inputs
 import loss
 import model
 
-def get_init_function(logdir, pretrained_model_path):
+def get_init_function(logdir, pretrained_model_path, fine_tune, original_inception_vars):
   
   if pretrained_model_path is None:
     return None
@@ -24,8 +24,11 @@ def get_init_function(logdir, pretrained_model_path):
         'Ignoring --pretrained_model_path because a checkpoint already exists in %s'
         % logdir)
     return None
-
-  variables_to_restore = slim.get_model_variables()
+  
+  if fine_tune:
+    variables_to_restore = original_inception_vars
+  else:
+    variables_to_restore = slim.get_model_variables()
 
   if tf.gfile.IsDirectory(pretrained_model_path):
     checkpoint_path = tf.train.latest_checkpoint(pretrained_model_path)
@@ -214,7 +217,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
 
     # Run training.
     slim.learning.train(train_op, logdir, 
-      init_fn=get_init_function(logdir, pretrained_model_path),
+      init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars),
       number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
       save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
