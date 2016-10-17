@@ -102,7 +102,23 @@ def build_finetunable_model(inputs, cfg):
   
   return locs, confs, inception_vars, detection_vars
 
-def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False):
+def filter_trainable_variables(trainable_vars, trainable_scopes):
+  """Allow the user to further restrict which variables should be trained.
+  """
+  if trainable_scopes is None:
+    return trainable_vars
+  else:
+    scopes = [scope.strip() for scope in trainable_scopes]
+  
+  trainable_var_set = set(trainable_vars)
+
+  variables_to_train = []
+  for scope in scopes:
+    variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+    variables_to_train.extend([var for var in variables if var in trainable_var_set])
+  return variables_to_train
+
+def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None):
   """
   Args:
     tfrecords (list)
@@ -190,6 +206,8 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
     maintain_averages_op = ema.apply(variables_to_average)
     tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, maintain_averages_op)
 
+    trainable_vars = filter_trainable_variables(trainable_vars, trainable_scopes)
+
     train_op = slim.learning.create_train_op(total_loss, optimizer, variables_to_train=trainable_vars)
 
     # Summary operations
@@ -254,6 +272,10 @@ def parse_args():
     parser.add_argument('--fine_tune', dest='fine_tune',
                         help='If True, then only the variables in the detection heads will be trained, as opposed to the whole network.',
                         action='store_true', default=False)
+    
+    parser.add_argument('--trainable_scopes', dest='trainable_scopes',
+                        help='Comma-separated list of scopes to filter the set of variables to train.', type=str,
+                        nargs='+', required=False, default=None)
 
     args = parser.parse_args()
     return args
@@ -279,7 +301,8 @@ def main():
     logdir=args.logdir,
     cfg=cfg,
     pretrained_model_path=args.pretrained_model,
-    fine_tune = args.fine_tune
+    fine_tune = args.fine_tune,
+    trainable_scopes = args.trainable_scopes
   )
 
 if __name__ == '__main__':
