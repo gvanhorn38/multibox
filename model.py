@@ -290,7 +290,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope=''):
         activation_fn=None, normalizer_fn=None, biases_initializer=None
       )
     
-    batch_size = inputs.get_shape().as_list()[0]
+    batch_size = tf.shape(inputs)[0]#inputs.get_shape().as_list()[0]
 
     # reshape the locations and confidences for easy concatenation
     detect_8_locations = tf.reshape(endpoints['8x8_locations'], [batch_size, -1])
