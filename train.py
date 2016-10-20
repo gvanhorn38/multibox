@@ -12,8 +12,17 @@ import inputs
 import loss
 import model
 
-def get_init_function(logdir, pretrained_model_path, fine_tune, original_inception_vars):
-  
+def get_init_function(logdir, pretrained_model_path, fine_tune, original_inception_vars, load_moving_averages=False):
+  """
+  Args:
+    logdir : location of where we will be storing checkpoint files.
+    pretrained_model_path : a path to a specific model, or a directory with a checkpoint file. The latest model will be used.
+    fine_tune : If True, then the detection heads will not be restored.
+    original_inception_vars : A list of variables that do not include the detection heads.
+    load_moving_averages : If True, then the moving average values of the variables will be restored.
+  """
+
+
   if pretrained_model_path is None:
     return None
 
@@ -26,9 +35,16 @@ def get_init_function(logdir, pretrained_model_path, fine_tune, original_incepti
     return None
   
   if fine_tune:
-    variables_to_restore = original_inception_vars
+      variables_to_restore = original_inception_vars
   else:
     variables_to_restore = slim.get_model_variables()
+
+  if load_moving_averages:
+    ema = tf.train.ExponentialMovingAverage(decay=0)
+    variables_to_restore = {
+      ema.average_name(var) : var
+      for var in variables_to_restore
+    }
 
   if tf.gfile.IsDirectory(pretrained_model_path):
     checkpoint_path = tf.train.latest_checkpoint(pretrained_model_path)
@@ -118,7 +134,7 @@ def filter_trainable_variables(trainable_vars, trainable_scopes):
     variables_to_train.extend([var for var in variables if var in trainable_var_set])
   return variables_to_train
 
-def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None):
+def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None, load_moving_averages=False):
   """
   Args:
     tfrecords (list)
@@ -235,7 +251,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
 
     # Run training.
     slim.learning.train(train_op, logdir, 
-      init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars),
+      init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars, load_moving_averages),
       number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
       save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
@@ -277,6 +293,10 @@ def parse_args():
                         help='Comma-separated list of scopes to filter the set of variables to train.', type=str,
                         nargs='+', required=False, default=None)
 
+    parser.add_argument('--load_moving_averages', dest='load_moving_averages',
+                        help='If True, then the moving averages will be restored from the pretrained network.',
+                        action='store_true', default=False)
+
     args = parser.parse_args()
     return args
 
@@ -302,7 +322,8 @@ def main():
     cfg=cfg,
     pretrained_model_path=args.pretrained_model,
     fine_tune = args.fine_tune,
-    trainable_scopes = args.trainable_scopes
+    trainable_scopes = args.trainable_scopes,
+    load_moving_averages = args.load_moving_averages
   )
 
 if __name__ == '__main__':
