@@ -54,7 +54,7 @@ def compute_assignments(locations, confidences, gt_bboxes, num_gt_bboxes, batch_
 
 def add_loss(locations, confidences, batched_bboxes, batched_num_bboxes, bbox_priors, location_loss_alpha):
   
-  batch_size = locations.get_shape().as_list()[0]
+  batch_size = tf.shape(locations)[0]#locations.get_shape().as_list()[0]
 
   with tf.name_scope("loss"):
     # ground truth bounding boxes:
