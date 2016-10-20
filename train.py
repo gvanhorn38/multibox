@@ -12,7 +12,7 @@ import inputs
 import loss
 import model
 
-def get_init_function(logdir, pretrained_model_path, fine_tune, original_inception_vars, load_moving_averages=False):
+def get_init_function(logdir, pretrained_model_path, fine_tune, original_inception_vars, load_moving_averages=False, ema=None):
   """
   Args:
     logdir : location of where we will be storing checkpoint files.
@@ -40,7 +40,7 @@ def get_init_function(logdir, pretrained_model_path, fine_tune, original_incepti
     variables_to_restore = slim.get_model_variables()
 
   if load_moving_averages:
-    ema = tf.train.ExponentialMovingAverage(decay=0)
+    #ema = tf.train.ExponentialMovingAverage(decay=0)
     variables_to_restore = {
       ema.average_name(var) : var
       for var in variables_to_restore
@@ -251,7 +251,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
 
     # Run training.
     slim.learning.train(train_op, logdir, 
-      init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars, load_moving_averages),
+      init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars, load_moving_averages, ema),
       number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
       save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
