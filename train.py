@@ -12,14 +12,16 @@ import inputs
 import loss
 import model
 
-def get_init_function(logdir, pretrained_model_path, fine_tune, original_inception_vars, load_moving_averages=False, ema=None):
+def get_init_function(logdir, pretrained_model_path, fine_tune, original_inception_vars, use_moving_averages=False, restore_moving_averages=False, ema=None):
   """
   Args:
     logdir : location of where we will be storing checkpoint files.
     pretrained_model_path : a path to a specific model, or a directory with a checkpoint file. The latest model will be used.
     fine_tune : If True, then the detection heads will not be restored.
     original_inception_vars : A list of variables that do not include the detection heads.
-    load_moving_averages : If True, then the moving average values of the variables will be restored.
+    use_moving_averages : If True, then the moving average values of the variables will be restored.
+    restore_moving_averages : If True, then the moving average values will also be restored.
+    ema : The exponential moving average object
   """
 
 
@@ -34,24 +36,46 @@ def get_init_function(logdir, pretrained_model_path, fine_tune, original_incepti
         % logdir)
     return None
   
-  if fine_tune:
-      variables_to_restore = original_inception_vars
-  else:
-    variables_to_restore = slim.get_model_variables()
-
-  if load_moving_averages:
-    #ema = tf.train.ExponentialMovingAverage(decay=0)
-    variables_to_restore = {
-      ema.average_name(var) : var
-      for var in variables_to_restore
-    }
-
   if tf.gfile.IsDirectory(pretrained_model_path):
     checkpoint_path = tf.train.latest_checkpoint(pretrained_model_path)
   else:
     checkpoint_path = pretrained_model_path
 
   tf.logging.info('Fine-tuning from %s' % checkpoint_path)
+
+  # Do we need to restore the detection heads?
+  if fine_tune:
+    variables_to_restore = original_inception_vars
+  else:
+    variables_to_restore = slim.get_model_variables()
+  
+  # Load in the moving average value for a variable, rather than the variable itself
+  if use_moving_averages:
+    variables_to_restore = {
+      ema.average_name(var) : var
+      for var in variables_to_restore
+    }
+  
+  # Do we want to restore the moving average variables? Otherwise they will be reinitialized
+  if restore_moving_averages:
+    
+    # If we are already using the moving averages to restore the variables, then we will need 
+    # two Saver() objects (since the names in the dictionaries will clash)
+    if use_moving_averages:
+
+      normal_saver = tf.train.Saver(variables_to_restore, reshape=False)
+      ema_saver = tf.train.Saver({
+        ema.average_name(var) : ema.average(var)
+        for var in variables_to_restore.values()
+      }, reshape=False)
+    
+      def callback(session):
+        normal_saver.restore(session, checkpoint_path)
+        ema_saver.restore(session, checkpoint_path)
+      return callback
+  
+    else:
+      variables_to_restore += [ema.average(var) for var in variables_to_restore]
 
   return slim.assign_from_checkpoint_fn(
       checkpoint_path,
@@ -132,9 +156,14 @@ def filter_trainable_variables(trainable_vars, trainable_scopes):
   for scope in scopes:
     variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
     variables_to_train.extend([var for var in variables if var in trainable_var_set])
+  
+  print "Trainable Variables"
+  for variable in variables_to_train:
+    print variable.name
+  
   return variables_to_train
 
-def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None, load_moving_averages=False):
+def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None, use_moving_averages=False, restore_moving_averages=False):
   """
   Args:
     tfrecords (list)
@@ -251,7 +280,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
 
     # Run training.
     slim.learning.train(train_op, logdir, 
-      init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars, load_moving_averages, ema),
+      init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars, use_moving_averages, restore_moving_averages, ema),
       number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
       save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
@@ -293,9 +322,13 @@ def parse_args():
                         help='Comma-separated list of scopes to filter the set of variables to train.', type=str,
                         nargs='+', required=False, default=None)
 
-    parser.add_argument('--load_moving_averages', dest='load_moving_averages',
-                        help='If True, then the moving averages will be restored from the pretrained network.',
+    parser.add_argument('--use_moving_averages', dest='use_moving_averages',
+                        help='If True, then the moving averages will be used for each model variable from the pretrained network.',
                         action='store_true', default=False)
+
+    parser.add_argument('--restore_moving_averages', dest='restore_moving_averages',
+                        help='If True, then the moving averages themselves be restored from the pretrained network.',
+                        action='store_true', default=False)                   
 
     args = parser.parse_args()
     return args
@@ -323,7 +356,8 @@ def main():
     pretrained_model_path=args.pretrained_model,
     fine_tune = args.fine_tune,
     trainable_scopes = args.trainable_scopes,
-    load_moving_averages = args.load_moving_averages
+    use_moving_averages = args.use_moving_averages,
+    restore_moving_averages = args.restore_moving_averages
   )
 
 if __name__ == '__main__':
