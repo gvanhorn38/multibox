@@ -5,20 +5,25 @@ Code to cluster aspect ratios, for generating dataset specific priors.
 from collections import Counter
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.misc import imread
+from scipy.misc import imread, imresize
 from sklearn.cluster import KMeans
 
-def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True):
+def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_bboxes=True):
   """
   Args:
     dataset (list): A list of image data, as returned by one of the dataset functions
     num_aspect_ratios (int) : The number of aspect ratios to return
+    warp_aspect_ratios : If True, then the bounding box coordinates will be warped such that the image is square prior to computing
+      the aspect ratio.
   """
   small_epsilon = 1e-10
 
   feature_vectors = []
   image_ids = []
   original_bboxes = []
+
+  if visualize:
+    plt.ion()
 
   for image_data in dataset:
     
@@ -30,7 +35,21 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True):
     bboxes = np.hstack([bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax])
     original_bboxes.extend(bboxes.tolist())
     
+    if warp_bboxes:
+      image_width = float(image_data['width'])
+      image_height = float(image_data['height'])
+
+      if image_width > image_height:
+        s = image_width / image_height
+        bbox_ymin *= s
+        bbox_ymax *= s
+      else:
+        s = image_height / image_width
+        bbox_xmin *= s
+        bbox_xmax *= s
+      
     aspect_ratios = (bbox_xmax - bbox_xmin) / (bbox_ymax - bbox_ymin)
+
     feature_vectors.extend(aspect_ratios.tolist())
     image_ids.extend([image_data['id']] * bboxes.shape[0])
   
@@ -56,7 +75,7 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True):
     plt.scatter(X, np.zeros_like(X))
     plt.title('Aspect Ratios')
     plt.show()
-
+  
   # Do the clustering
   cluster = KMeans(n_clusters=num_aspect_ratios, n_jobs=8)
   cluster.fit(X)
@@ -103,7 +122,6 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True):
       y1 = center_i - (h / 2.)
       y2 = center_i + (h / 2.)
       
-      
       plt.imshow(img)
       
       xmin, ymin, xmax, ymax = x1 * img_w, y1 * img_h, x2 * img_w, y2 * img_h
@@ -141,6 +159,10 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True):
         image_path = dataset_dict[image_id]['filename']
         
         image = imread(image_path)
+        
+        if warp_bboxes:
+          image = imresize(image, [299, 299, 3])
+        
         height, width = image.shape[:2]
         
         fig.add_subplot(num_rows, num_cols, j+1)
