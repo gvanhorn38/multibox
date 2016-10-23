@@ -32,7 +32,7 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
   # Force all Variables to reside on the CPU.
   with graph.as_default():
 
-    batched_images, batched_bboxes, batched_num_bboxes, batched_image_ids = inputs.input_nodes(
+    batched_images, batched_bboxes, batched_num_bboxes, batched_areas, batched_image_ids = inputs.input_nodes(
       tfrecords=tfrecords,
       max_num_bboxes = cfg.MAX_NUM_BBOXES,
       num_epochs=1,
@@ -78,7 +78,7 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
     # Restore the parameters
     saver = tf.train.Saver(shadow_vars, reshape=True)
 
-    fetches = [locations, confidences, batched_bboxes, batched_num_bboxes, batched_image_ids]
+    fetches = [locations, confidences, batched_bboxes, batched_num_bboxes, batched_areas, batched_image_ids]
     
     coord = tf.train.Coordinator()
 
@@ -136,7 +136,8 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
           confs = outputs[1]
           all_gt_bboxes = outputs[2]
           all_gt_num_bboxes = outputs[3]
-          image_ids = outputs[4]
+          all_gt_areas = outputs[4]
+          image_ids = outputs[5]
 
           for b in range(cfg.BATCH_SIZE):
 
@@ -148,13 +149,14 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
 
             gt_bboxes = all_gt_bboxes[b]
             gt_num_bboxes = all_gt_num_bboxes[b]
+            gt_areas = all_gt_areas[b]
 
             # Scale the predictions and ground truth boxes
             # GVH: Should check to see if we are preserving aspect ratio or not...
             im_scale = np.array([cfg.INPUT_SIZE, cfg.INPUT_SIZE, cfg.INPUT_SIZE, cfg.INPUT_SIZE])
             predicted_bboxes = predicted_bboxes * im_scale
             gt_bboxes = gt_bboxes * im_scale
-          
+             
             
             # Sort the predictions based on confidences
             sorted_idxs = np.argsort(predicted_confs.ravel())[::-1]
@@ -180,7 +182,7 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
                 "id" : gt_annotation_id,
                 "image_id" : img_id,
                 "category_id" : 1,
-                "area" : w * h,
+                "area" : gt_areas[k],
                 "bbox" : [x1, y1, w, h],
                 "iscrowd" : 0,
               })

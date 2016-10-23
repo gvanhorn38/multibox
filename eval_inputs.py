@@ -47,7 +47,8 @@ def input_nodes(
         'image/object/bbox/ymin' : tf.VarLenFeature(dtype=tf.float32),
         'image/object/bbox/xmax' : tf.VarLenFeature(dtype=tf.float32),
         'image/object/bbox/ymax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/count' : tf.FixedLenFeature([], tf.int64)
+        'image/object/bbox/count' : tf.FixedLenFeature([], tf.int64),
+        'image/object/area' : tf.VarLenFeature(dtype=tf.float32) # the area of the object, in the original image space
       }
     )
 
@@ -87,9 +88,14 @@ def input_nodes(
     image = tf.sub(image, 0.5)
     image = tf.mul(image, 2.0)
 
+    areas = features['image/object/area'].values
+    areas = tf.pad(areas, [[0, num_rows_to_pad]])
+    areas.set_shape([max_num_bboxes])
+    
+
     if shuffle_batch:
-      images, batched_bboxes, batched_num_bboxes, image_ids = tf.train.shuffle_batch(
-        [image, bboxes, num_bboxes, image_id],
+      images, batched_bboxes, batched_num_bboxes, batched_areas, image_ids = tf.train.shuffle_batch(
+        [image, bboxes, num_bboxes, areas, image_id],
         batch_size=batch_size,
         num_threads=num_threads,
         capacity= capacity, 
@@ -98,15 +104,15 @@ def input_nodes(
       )
 
     else:
-      images, batched_bboxes, batched_num_bboxes, image_ids = tf.train.batch(
-        [image, bboxes, num_bboxes, image_id],
+      images, batched_bboxes, batched_num_bboxes, batched_areas, image_ids = tf.train.batch(
+        [image, bboxes, num_bboxes, areas, image_id],
         batch_size=batch_size,
         num_threads=num_threads,
         capacity= capacity,
         enqueue_many=False
       )
     
-    return images, batched_bboxes, batched_num_bboxes, image_ids
+    return images, batched_bboxes, batched_num_bboxes, batched_areas, image_ids
     
     
   
