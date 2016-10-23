@@ -51,9 +51,15 @@ def get_init_function(logdir, pretrained_model_path, fine_tune, original_incepti
   
   # Load in the moving average value for a variable, rather than the variable itself
   if use_moving_averages:
+
+    if type(variables_to_restore) == dict:
+      vars = variables_to_restore.values()
+    else:
+      vars = variables_to_restore
+
     variables_to_restore = {
       ema.average_name(var) : var
-      for var in variables_to_restore
+      for var in vars
     }
   
   # Do we want to restore the moving average variables? Otherwise they will be reinitialized
@@ -75,6 +81,7 @@ def get_init_function(logdir, pretrained_model_path, fine_tune, original_incepti
       return callback
   
     else:
+      # GVH: Need to check for dict
       variables_to_restore += [ema.average(var) for var in variables_to_restore]
 
   return slim.assign_from_checkpoint_fn(

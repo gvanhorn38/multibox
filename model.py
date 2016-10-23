@@ -195,129 +195,131 @@ def inception_resnet_v2(inputs,
     # 8 x 8 x 1536
     return net, end_points
 
-def build_detection_heads(inputs, num_bboxes_per_cell, scope=''):
+def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=None):
   
   endpoints = {}
   
-  with slim.arg_scope([slim.conv2d, slim.avg_pool2d], stride=1, padding='SAME'):
+  with tf.variable_scope(scope, 'Multibox', [inputs], reuse=reuse):
 
-    # 8 x 8 grid cells
-    with tf.variable_scope("8x8"):
-      # 8 x 8 x 2048 
-      branch8x8 = slim.conv2d(inputs, 96, [1, 1])
-      # 8 x 8 x 96
-      branch8x8 = slim.conv2d(branch8x8, 96, [3, 3])
-      # 8 x 8 x 96
-      endpoints['8x8_locations'] = slim.conv2d(branch8x8, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-      # 8 x 8 x 96
-      endpoints['8x8_confidences'] = slim.conv2d(branch8x8, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
+    with slim.arg_scope([slim.conv2d, slim.avg_pool2d], stride=1, padding='SAME'):
 
-    # 6 x 6 grid cells
-    with tf.variable_scope("6x6"):
-      # 8 x 8 x 2048 
-      branch6x6 = slim.conv2d(inputs, 96, [3, 3])
-      # 8 x 8 x 96
-      branch6x6 = slim.conv2d(branch6x6, 96, [3, 3], padding = "VALID")
-      # 6 x 6 x 96
-      endpoints['6x6_locations'] = slim.conv2d(branch6x6, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-      # 6 x 6 x 96
-      endpoints['6x6_confidences'] = slim.conv2d(branch6x6, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-    
-    # 8 x 8 x 2048
-    net = slim.conv2d(inputs, 256, [3, 3], stride=2)
+      # 8 x 8 grid cells
+      with tf.variable_scope("8x8"):
+        # 8 x 8 x 2048 
+        branch8x8 = slim.conv2d(inputs, 96, [1, 1])
+        # 8 x 8 x 96
+        branch8x8 = slim.conv2d(branch8x8, 96, [3, 3])
+        # 8 x 8 x 96
+        endpoints['8x8_locations'] = slim.conv2d(branch8x8, num_bboxes_per_cell * 4, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+        # 8 x 8 x 96
+        endpoints['8x8_confidences'] = slim.conv2d(branch8x8, num_bboxes_per_cell, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
 
-    # 4 x 4 grid cells
-    with tf.variable_scope("4x4"):
-      # 4 x 4 x 256
-      branch4x4 = slim.conv2d(net, 128, [3, 3])
-      # 4 x 4 x 128
-      endpoints['4x4_locations'] = slim.conv2d(branch4x4, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-      # 4 x 4 x 128
-      endpoints['4x4_confidences'] = slim.conv2d(branch4x4, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-
-    # 3 x 3 grid cells
-    with tf.variable_scope("3x3"):
-      # 4 x 4 x 256
-      branch3x3 = slim.conv2d(net, 128, [1, 1])
-      # 4 x 4 x 128
-      branch3x3 = slim.conv2d(branch3x3, 96, [2, 2], padding="VALID")
-      # 3 x 3 x 96
-      endpoints['3x3_locations'] = slim.conv2d(branch3x3, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-      # 3 x 3 x 96
-      endpoints['3x3_confidences'] = slim.conv2d(branch3x3, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
+      # 6 x 6 grid cells
+      with tf.variable_scope("6x6"):
+        # 8 x 8 x 2048 
+        branch6x6 = slim.conv2d(inputs, 96, [3, 3])
+        # 8 x 8 x 96
+        branch6x6 = slim.conv2d(branch6x6, 96, [3, 3], padding = "VALID")
+        # 6 x 6 x 96
+        endpoints['6x6_locations'] = slim.conv2d(branch6x6, num_bboxes_per_cell * 4, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+        # 6 x 6 x 96
+        endpoints['6x6_confidences'] = slim.conv2d(branch6x6, num_bboxes_per_cell, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
       
-    # 2 x 2 grid cells
-    with tf.variable_scope("2x2"):
-      # 4 x 4 x 256
-      branch2x2 = slim.conv2d(net, 128, [1, 1])
-      # 4 x 4 x 128
-      branch2x2 = slim.conv2d(branch2x2, 96, [3, 3], padding = "VALID")
-      # 2 x 2 x 96
-      endpoints['2x2_locations'] = slim.conv2d(branch2x2, num_bboxes_per_cell * 4, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-      # 2 x 2 x 96
-      endpoints['2x2_confidences'] = slim.conv2d(branch2x2, num_bboxes_per_cell, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-      
-    # 1 x 1 grid cell
-    with tf.variable_scope("1x1"):
       # 8 x 8 x 2048
-      branch1x1 = slim.avg_pool2d(inputs, [8, 8], padding="VALID")
-      # 1 x 1 x 2048
-      endpoints['1x1_locations'] = slim.conv2d(branch1x1, 4, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-      # 1 x 1 x 2048
-      endpoints['1x1_confidences'] = slim.conv2d(branch1x1, 1, [1, 1],
-        activation_fn=None, normalizer_fn=None, biases_initializer=None
-      )
-    
-    batch_size = tf.shape(inputs)[0]#inputs.get_shape().as_list()[0]
+      net = slim.conv2d(inputs, 256, [3, 3], stride=2)
 
-    # reshape the locations and confidences for easy concatenation
-    detect_8_locations = tf.reshape(endpoints['8x8_locations'], [batch_size, -1])
-    detect_8_confidences = tf.reshape(endpoints['8x8_confidences'], [batch_size, -1])
+      # 4 x 4 grid cells
+      with tf.variable_scope("4x4"):
+        # 4 x 4 x 256
+        branch4x4 = slim.conv2d(net, 128, [3, 3])
+        # 4 x 4 x 128
+        endpoints['4x4_locations'] = slim.conv2d(branch4x4, num_bboxes_per_cell * 4, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+        # 4 x 4 x 128
+        endpoints['4x4_confidences'] = slim.conv2d(branch4x4, num_bboxes_per_cell, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
 
-    detect_6_locations = tf.reshape(endpoints['6x6_locations'], [batch_size, -1])
-    detect_6_confidences = tf.reshape(endpoints['6x6_confidences'], [batch_size, -1])
+      # 3 x 3 grid cells
+      with tf.variable_scope("3x3"):
+        # 4 x 4 x 256
+        branch3x3 = slim.conv2d(net, 128, [1, 1])
+        # 4 x 4 x 128
+        branch3x3 = slim.conv2d(branch3x3, 96, [2, 2], padding="VALID")
+        # 3 x 3 x 96
+        endpoints['3x3_locations'] = slim.conv2d(branch3x3, num_bboxes_per_cell * 4, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+        # 3 x 3 x 96
+        endpoints['3x3_confidences'] = slim.conv2d(branch3x3, num_bboxes_per_cell, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+        
+      # 2 x 2 grid cells
+      with tf.variable_scope("2x2"):
+        # 4 x 4 x 256
+        branch2x2 = slim.conv2d(net, 128, [1, 1])
+        # 4 x 4 x 128
+        branch2x2 = slim.conv2d(branch2x2, 96, [3, 3], padding = "VALID")
+        # 2 x 2 x 96
+        endpoints['2x2_locations'] = slim.conv2d(branch2x2, num_bboxes_per_cell * 4, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+        # 2 x 2 x 96
+        endpoints['2x2_confidences'] = slim.conv2d(branch2x2, num_bboxes_per_cell, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+        
+      # 1 x 1 grid cell
+      with tf.variable_scope("1x1"):
+        # 8 x 8 x 2048
+        branch1x1 = slim.avg_pool2d(inputs, [8, 8], padding="VALID")
+        # 1 x 1 x 2048
+        endpoints['1x1_locations'] = slim.conv2d(branch1x1, 4, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+        # 1 x 1 x 2048
+        endpoints['1x1_confidences'] = slim.conv2d(branch1x1, 1, [1, 1],
+          activation_fn=None, normalizer_fn=None, biases_initializer=None
+        )
+      
+      batch_size = tf.shape(inputs)[0]#inputs.get_shape().as_list()[0]
 
-    detect_4_locations = tf.reshape(endpoints['4x4_locations'], [batch_size, -1])
-    detect_4_confidences = tf.reshape(endpoints['4x4_confidences'], [batch_size, -1])
+      # reshape the locations and confidences for easy concatenation
+      detect_8_locations = tf.reshape(endpoints['8x8_locations'], [batch_size, -1])
+      detect_8_confidences = tf.reshape(endpoints['8x8_confidences'], [batch_size, -1])
 
-    detect_3_locations = tf.reshape(endpoints['3x3_locations'], [batch_size, -1])
-    detect_3_confidences = tf.reshape(endpoints['3x3_confidences'], [batch_size, -1])
+      detect_6_locations = tf.reshape(endpoints['6x6_locations'], [batch_size, -1])
+      detect_6_confidences = tf.reshape(endpoints['6x6_confidences'], [batch_size, -1])
 
-    detect_2_locations = tf.reshape(endpoints['2x2_locations'], [batch_size, -1])
-    detect_2_confidences = tf.reshape(endpoints['2x2_confidences'], [batch_size, -1])
+      detect_4_locations = tf.reshape(endpoints['4x4_locations'], [batch_size, -1])
+      detect_4_confidences = tf.reshape(endpoints['4x4_confidences'], [batch_size, -1])
 
-    detect_1_locations = tf.reshape(endpoints['1x1_locations'], [batch_size, -1])
-    detect_1_confidences = tf.reshape(endpoints['1x1_confidences'], [batch_size, -1])    
-          
-    # Collect all of the locations and confidences 
-    locations = tf.concat(1, [detect_8_locations, detect_6_locations, detect_4_locations, detect_3_locations, detect_2_locations, detect_1_locations])
-    locations = tf.reshape(locations, [batch_size, -1, 4])
-    
-    confidences = tf.concat(1, [detect_8_confidences, detect_6_confidences, detect_4_confidences, detect_3_confidences, detect_2_confidences, detect_1_confidences])
-    confidences = tf.reshape(confidences, [batch_size, -1, 1])
-    confidences = tf.sigmoid(confidences)
+      detect_3_locations = tf.reshape(endpoints['3x3_locations'], [batch_size, -1])
+      detect_3_confidences = tf.reshape(endpoints['3x3_confidences'], [batch_size, -1])
+
+      detect_2_locations = tf.reshape(endpoints['2x2_locations'], [batch_size, -1])
+      detect_2_confidences = tf.reshape(endpoints['2x2_confidences'], [batch_size, -1])
+
+      detect_1_locations = tf.reshape(endpoints['1x1_locations'], [batch_size, -1])
+      detect_1_confidences = tf.reshape(endpoints['1x1_confidences'], [batch_size, -1])    
+            
+      # Collect all of the locations and confidences 
+      locations = tf.concat(1, [detect_8_locations, detect_6_locations, detect_4_locations, detect_3_locations, detect_2_locations, detect_1_locations])
+      locations = tf.reshape(locations, [batch_size, -1, 4])
+      
+      confidences = tf.concat(1, [detect_8_confidences, detect_6_confidences, detect_4_confidences, detect_3_confidences, detect_2_confidences, detect_1_confidences])
+      confidences = tf.reshape(confidences, [batch_size, -1, 1])
+      confidences = tf.sigmoid(confidences)
     
   return locations, confidences, endpoints
 
