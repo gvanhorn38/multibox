@@ -193,7 +193,7 @@ def generate_priors(aspect_ratios, min_scale=0.1, max_scale=0.95, restrict_to_im
       aspect ratio) such that the entire box is contained in the image bounds.
   """
   # These grids correspond to the detection heads.
-  grids = [8, 6, 4, 3, 2, 1]
+  grids = [20, 10, 5, 4, 3, 1]
   num_scales = len(grids)
   scales = []
   for i in range(1, num_scales+1):
@@ -334,17 +334,26 @@ def show_priors_at_cell(priors, cell_offset, num_priors_per_cell, image_height, 
   
   
 def visualize_priors(priors, num_priors_per_cell=11, image_height=299, image_width=299):
-  
+
+  grids = [20, 10, 5, 4, 3, 1]
+  offset_data = []
+  for i, grid in enumerate(grids[:-1]):
+    h = grid / 2
+    offset = sum([g * g for g in grids[0:i]])
+    offset += grid * h + h
+    offset_data.append(("%dx%d cell" % (grid, grid), offset))
 
   # Offsets for the cells
-  offset_data = [
-    ('8x8 cell', 8*4 + 4),
-    ('6x6 cell', 8*8 + 6 * 3 + 2),
-    ('4x4 cell', 8*8 + 6*6 + 4*2 + 2),
-    ('3x3 cell', 8*8 + 6*6 + 4*4 + 3*1 + 1),
-    ('2x2 cell', 8*8 + 6*6 + 4*4 + 3*3 + 2*1 + 0)
-  ]
+  # offset_data = [
+  #   ('8x8 cell', 8*4 + 4),
+  #   ('6x6 cell', 8*8 + 6 * 3 + 2),
+  #   ('4x4 cell', 8*8 + 6*6 + 4*2 + 2),
+  #   ('3x3 cell', 8*8 + 6*6 + 4*4 + 3*1 + 1),
+  #   ('2x2 cell', 8*8 + 6*6 + 4*4 + 3*3 + 2*1 + 0)
+  # ]
   
+  print offset_data
+
   plt.figure('Priors')
   for cell_name, offset in offset_data:
     plt.clf()

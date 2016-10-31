@@ -199,90 +199,109 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
   
   endpoints = {}
   
+  print inputs.get_shape().as_list()
+
   with tf.variable_scope(scope, 'Multibox', [inputs], reuse=reuse):
 
     with slim.arg_scope([slim.conv2d, slim.avg_pool2d], stride=1, padding='SAME'):
 
-      # 8 x 8 grid cells
+      # 21 x 21 grid cells
       with tf.variable_scope("8x8"):
-        # 8 x 8 x 2048 
+       
+        # 21 x 21 x 96
         branch8x8 = slim.conv2d(inputs, 96, [1, 1])
-        # 8 x 8 x 96
+       
+        # 21 x 21 x 96
         branch8x8 = slim.conv2d(branch8x8, 96, [3, 3])
-        # 8 x 8 x 96
+        
+        # 21 x 21 x (k * 4)
         endpoints['8x8_locations'] = slim.conv2d(branch8x8, num_bboxes_per_cell * 4, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
-        # 8 x 8 x 96
+        # 21 x 21 x k
         endpoints['8x8_confidences'] = slim.conv2d(branch8x8, num_bboxes_per_cell, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
+      
+      print endpoints['8x8_locations'].get_shape().as_list()
 
-      # 6 x 6 grid cells
+      # 10 x 10 x 512
+      net = slim.conv2d(inputs, 512, [3, 3], stride=2)
+
+      # 10 x 10 grid cells
       with tf.variable_scope("6x6"):
-        # 8 x 8 x 2048 
-        branch6x6 = slim.conv2d(inputs, 96, [3, 3])
-        # 8 x 8 x 96
-        branch6x6 = slim.conv2d(branch6x6, 96, [3, 3], padding = "VALID")
-        # 6 x 6 x 96
+        # 10 x 10 x 96 
+        branch6x6 = slim.conv2d(net, 96, [3, 3])
+        # 10 x 10 x 96
+        branch6x6 = slim.conv2d(branch6x6, 96, [3, 3])#, padding = "VALID")
+        # 10 x 10 x (k*4)
         endpoints['6x6_locations'] = slim.conv2d(branch6x6, num_bboxes_per_cell * 4, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
-        # 6 x 6 x 96
+        # 10 x 10 x k
         endpoints['6x6_confidences'] = slim.conv2d(branch6x6, num_bboxes_per_cell, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
       
-      # 8 x 8 x 2048
-      net = slim.conv2d(inputs, 256, [3, 3], stride=2)
+      print endpoints['6x6_locations'].get_shape().as_list()
 
-      # 4 x 4 grid cells
+      # 5 x 5 x 256
+      net = slim.conv2d(net, 256, [3, 3], stride=2)
+      print net.get_shape().as_list()
+      
+      # 5 x 5 grid cells
       with tf.variable_scope("4x4"):
-        # 4 x 4 x 256
+        # 5 x 5 x 128
         branch4x4 = slim.conv2d(net, 128, [3, 3])
-        # 4 x 4 x 128
+        # 5 x 5 x (k*4)
         endpoints['4x4_locations'] = slim.conv2d(branch4x4, num_bboxes_per_cell * 4, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
-        # 4 x 4 x 128
+        # 5 x 5 x k
         endpoints['4x4_confidences'] = slim.conv2d(branch4x4, num_bboxes_per_cell, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
+      
+      print endpoints['4x4_locations'].get_shape().as_list()
 
-      # 3 x 3 grid cells
+      # 4 x 4 grid cells
       with tf.variable_scope("3x3"):
-        # 4 x 4 x 256
-        branch3x3 = slim.conv2d(net, 128, [1, 1])
         # 4 x 4 x 128
+        branch3x3 = slim.conv2d(net, 128, [1, 1])
+        # 4 x 4 x 96
         branch3x3 = slim.conv2d(branch3x3, 96, [2, 2], padding="VALID")
-        # 3 x 3 x 96
+        # 4 x 4 x (k*4)
         endpoints['3x3_locations'] = slim.conv2d(branch3x3, num_bboxes_per_cell * 4, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
-        # 3 x 3 x 96
+        # 4 x 4 x k
         endpoints['3x3_confidences'] = slim.conv2d(branch3x3, num_bboxes_per_cell, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
-        
-      # 2 x 2 grid cells
+
+      print endpoints['3x3_locations'].get_shape().as_list()
+
+      # 3 x 3 grid cells
       with tf.variable_scope("2x2"):
-        # 4 x 4 x 256
+        # 3 x 3 x 128
         branch2x2 = slim.conv2d(net, 128, [1, 1])
-        # 4 x 4 x 128
+        # 3 x 3 x 96
         branch2x2 = slim.conv2d(branch2x2, 96, [3, 3], padding = "VALID")
-        # 2 x 2 x 96
+        # 3 x 3 x (k*4)
         endpoints['2x2_locations'] = slim.conv2d(branch2x2, num_bboxes_per_cell * 4, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
-        # 2 x 2 x 96
+        # 3 x 3 x k
         endpoints['2x2_confidences'] = slim.conv2d(branch2x2, num_bboxes_per_cell, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
-        
+
+      print endpoints['2x2_locations'].get_shape().as_list()
+
       # 1 x 1 grid cell
       with tf.variable_scope("1x1"):
         # 8 x 8 x 2048
-        branch1x1 = slim.avg_pool2d(inputs, [8, 8], padding="VALID")
+        branch1x1 = slim.avg_pool2d(inputs, [20, 20], padding="VALID")
         # 1 x 1 x 2048
         endpoints['1x1_locations'] = slim.conv2d(branch1x1, 4, [1, 1],
           activation_fn=None, normalizer_fn=None, biases_initializer=None
@@ -292,6 +311,8 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
           activation_fn=None, normalizer_fn=None, biases_initializer=None
         )
       
+      print endpoints['1x1_locations'].get_shape().as_list()
+
       batch_size = tf.shape(inputs)[0]#inputs.get_shape().as_list()[0]
 
       # reshape the locations and confidences for easy concatenation
