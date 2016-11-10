@@ -170,7 +170,7 @@ def filter_trainable_variables(trainable_vars, trainable_scopes):
   
   return variables_to_train
 
-def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None, use_moving_averages=False, restore_moving_averages=False):
+def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None, use_moving_averages=False, restore_moving_averages=False, max_number_of_steps=None):
   """
   Args:
     tfrecords (list)
@@ -285,10 +285,14 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       keep_checkpoint_every_n_hours = cfg.KEEP_CHECKPOINT_EVERY_N_HOURS
     )
 
+    # Backwards compatibility with setting the max_number_of_steps in cfg
+    if max_number_of_steps is None:
+      max_number_of_steps = cfg.NUM_TRAIN_ITERATIONS
+
     # Run training.
     slim.learning.train(train_op, logdir, 
       init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars, use_moving_averages, restore_moving_averages, ema),
-      number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
+      number_of_steps=max_number_of_steps,
       save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
       saver=saver,
@@ -335,7 +339,11 @@ def parse_args():
 
     parser.add_argument('--restore_moving_averages', dest='restore_moving_averages',
                         help='If True, then the moving averages themselves be restored from the pretrained network.',
-                        action='store_true', default=False)                   
+                        action='store_true', default=False) 
+
+    parser.add_argument('--max_number_of_steps', dest='max_number_of_steps',
+                        help='The maximum number of iterations to run.',
+                        required=False, type=int, default=None)                   
 
     args = parser.parse_args()
     return args
@@ -364,7 +372,8 @@ def main():
     fine_tune = args.fine_tune,
     trainable_scopes = args.trainable_scopes,
     use_moving_averages = args.use_moving_averages,
-    restore_moving_averages = args.restore_moving_averages
+    restore_moving_averages = args.restore_moving_averages,
+    max_number_of_steps = args.max_number_of_steps
   )
 
 if __name__ == '__main__':
