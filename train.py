@@ -170,7 +170,7 @@ def filter_trainable_variables(trainable_vars, trainable_scopes):
   
   return variables_to_train
 
-def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None, use_moving_averages=False, restore_moving_averages=False, max_number_of_steps=None):
+def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None, use_moving_averages=False, restore_moving_averages=False):
   """
   Args:
     tfrecords (list)
@@ -285,14 +285,10 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       keep_checkpoint_every_n_hours = cfg.KEEP_CHECKPOINT_EVERY_N_HOURS
     )
 
-    # Backwards compatibility with setting the max_number_of_steps in cfg
-    if max_number_of_steps is None:
-      max_number_of_steps = cfg.NUM_TRAIN_ITERATIONS
-
     # Run training.
     slim.learning.train(train_op, logdir, 
       init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars, use_moving_averages, restore_moving_averages, ema),
-      number_of_steps=max_number_of_steps,
+      number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
       save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
       save_interval_secs=cfg.SAVE_INTERVAL_SECS,
       saver=saver,
@@ -343,6 +339,10 @@ def parse_args():
 
     parser.add_argument('--max_number_of_steps', dest='max_number_of_steps',
                         help='The maximum number of iterations to run.',
+                        required=False, type=int, default=None) 
+
+    parser.add_argument('--batch_size', dest='batch_size',
+                        help='The batch size.',
                         required=False, type=int, default=None)                   
 
     args = parser.parse_args()
@@ -359,6 +359,12 @@ def main():
   pprint.pprint(cfg)
   print 
 
+  if args.max_number_of_steps != None:
+    cfg.NUM_TRAIN_ITERATIONS = args.max_number_of_steps
+  
+  if args.batch_size != None:
+    cfg.BATCH_SIZE = args.batch_size
+
   with open(args.priors) as f:
       bbox_priors = pickle.load(f)
   bbox_priors = np.array(bbox_priors).astype(np.float32)
@@ -372,8 +378,7 @@ def main():
     fine_tune = args.fine_tune,
     trainable_scopes = args.trainable_scopes,
     use_moving_averages = args.use_moving_averages,
-    restore_moving_averages = args.restore_moving_averages,
-    max_number_of_steps = args.max_number_of_steps
+    restore_moving_averages = args.restore_moving_averages
   )
 
 if __name__ == '__main__':
