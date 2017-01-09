@@ -39,7 +39,19 @@ python visualize_inputs.py \
 --config /Volumes/Untitled/models/coco_person_detection/9/config_train.yaml
 ```
 
-Once you are ready for training, you should download the [pretrained inception-resnet-v2 network](https://research.googleblog.com/2016/08/improving-inception-and-image.html) and use it as a starting point. Then you can run the training script:
+Once you are ready for training, you should download the [pretrained inception-resnet-v2 network](https://research.googleblog.com/2016/08/improving-inception-and-image.html) and use it as a starting point. Before training the whole network, you need to warmup the detection heads. I call this finetuning. Therefore the training procedure consists of 2 calls to the train.py script. First you finetune: 
+
+```sh
+python train.py \
+--tfrecords /Volumes/Untitled/tensorflow_datasets/coco_people/kps/val2000/* \
+--priors /Volumes/Untitled/models/coco_person_detection/9/coco_person_priors_7.pkl \
+--logdir /Users/GVH/Desktop/multibox_train/finetune \
+--config /Users/GVH/Desktop/multibox_train/config_train.yaml \
+--pretrained_model /Users/GVH/Desktop/Inception_Models/inception-resnet-v2/inception_resnet_v2_2016_08_30.ckpt \
+--fine_tune
+```
+
+Once the detection heads have warmed up, you can train the whole model:
 
 ```sh
 python train.py \
@@ -47,7 +59,7 @@ python train.py \
 --priors /Volumes/Untitled/models/coco_person_detection/9/coco_person_priors_7.pkl \
 --logdir /Users/GVH/Desktop/multibox_train/ \
 --config /Users/GVH/Desktop/multibox_train/config_train.yaml \
---pretrained_model /Users/GVH/Desktop/Inception_Models/inception-resnet-v2/inception_resnet_v2_2016_08_30.ckpt
+--pretrained_model /Users/GVH/Desktop/multibox_train/finetune
 ```
 
 If you have a validation set, you can visualize the ground truth boxes and the predicted boxes:
